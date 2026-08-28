@@ -91,14 +91,14 @@ async function prepareCustomerLogo(buffer) {
     else img.resize({ h: 2048 });
   }
 
-  removeEdgeConnectedWhite(img);
+  removeEdgeConnectedBackground(img);
   const bounds = visibleBounds(img);
   if (!bounds) throw new Error('The uploaded logo contains no visible pixels after background removal.');
 
   return img.crop(bounds);
 }
 
-function removeEdgeConnectedWhite(img) {
+function removeEdgeConnectedBackground(img) {
   const { width, height, data } = img.bitmap;
   const pixelCount = width * height;
   const visited = new Uint8Array(pixelCount);
@@ -106,11 +106,18 @@ function removeEdgeConnectedWhite(img) {
   let head = 0;
   let tail = 0;
 
+  // Most customer JPGs arrive on a flat white or coloured rectangle. Find
+  // the dominant colour around the outside edge and only treat it as a
+  // removable background when it occupies a meaningful share of that edge.
+  // Transparent PNGs simply pass through unchanged.
+  const background = dominantBorderColour(img);
+  const useColourBackground = background && background.share >= 0.35;
+
   function enqueue(index) {
     if (index < 0 || index >= pixelCount || visited[index]) return;
     visited[index] = 1;
     const offset = index * 4;
-    if (!isNearWhite(data, offset)) return;
+    if (!isBackgroundPixel(data, offset, background, useColourBackground)) return;
     queue[tail++] = index;
   }
 
@@ -135,10 +142,50 @@ function removeEdgeConnectedWhite(img) {
   }
 }
 
-function isNearWhite(data, offset) {
+function isBackgroundPixel(data, offset, background, useColourBackground) {
   const alpha = data[offset + 3];
   if (alpha === 0) return true;
-  return data[offset] >= 238 && data[offset + 1] >= 238 && data[offset + 2] >= 238;
+  if (data[offset] >= 238 && data[offset + 1] >= 238 && data[offset + 2] >= 238) return true;
+  if (!useColourBackground) return false;
+  return colourDistance(
+    data[offset], data[offset + 1], data[offset + 2],
+    background.r, background.g, background.b
+  ) <= 34;
+}
+
+function dominantBorderColour(img) {
+  const { width, height, data } = img.bitmap;
+  const bins = new Map();
+  let opaqueCount = 0;
+
+  function sample(x, y) {
+    const offset = (y * width + x) * 4;
+    if (data[offset + 3] < 96) return;
+    opaqueCount += 1;
+    const r = Math.round(data[offset] / 24) * 24;
+    const g = Math.round(data[offset + 1] / 24) * 24;
+    const b = Math.round(data[offset + 2] / 24) * 24;
+    const key = `${r},${g},${b}`;
+    bins.set(key, (bins.get(key) || 0) + 1);
+  }
+
+  for (let x = 0; x < width; x += 1) {
+    sample(x, 0);
+    if (height > 1) sample(x, height - 1);
+  }
+  for (let y = 1; y < height - 1; y += 1) {
+    sample(0, y);
+    if (width > 1) sample(width - 1, y);
+  }
+
+  if (!opaqueCount || !bins.size) return null;
+  const [key, count] = [...bins.entries()].sort((a, b) => b[1] - a[1])[0];
+  const [r, g, b] = key.split(',').map(Number);
+  return { r: Math.min(r, 255), g: Math.min(g, 255), b: Math.min(b, 255), share: count / opaqueCount };
+}
+
+function colourDistance(r1, g1, b1, r2, g2, b2) {
+  return Math.hypot(r1 - r2, g1 - g2, b1 - b2);
 }
 
 function visibleBounds(img) {
