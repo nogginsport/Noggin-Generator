@@ -34,9 +34,13 @@ const PRODUCTS = {
   cap: {
     mockupUuidEnvVar: 'SUDOMOCK_CAP_MOCKUP_UUID',
     logoLayerName: 'FRONT DESIGN',
+    // The cap's three existing design smart objects are proven independently
+    // editable in SudoMock. We generate complete artwork for each one instead
+    // of depending on inaccessible Photoshop colour-fill layers.
+    artworkDriven: true,
     colourZones: {
-      primaryLed:   { 'CAP COLOR': 'primary', 'PEAK': 'secondary' },
-      secondaryLed: { 'CAP COLOR': 'secondary', 'PEAK': 'primary' },
+      primaryLed: {},
+      secondaryLed: {},
     },
     // Cap only has 2 real zones, so only 2 meaningful variations exist —
     // see the "cap 2 designs, not 3" decision.

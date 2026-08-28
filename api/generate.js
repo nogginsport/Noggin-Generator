@@ -39,12 +39,13 @@ module.exports = async (req, res) => {
     return res.status(405).json({ code: 'METHOD_NOT_ALLOWED', message: 'Use POST.' });
   }
 
-  let kv, put, getMockup, render, findSmartObjectByName, buildBandImage, PRODUCTS, PRODUCT_VARIATIONS;
+  let kv, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, PRODUCTS, PRODUCT_VARIATIONS;
   try {
     ({ kv } = require('@vercel/kv'));
     ({ put } = require('@vercel/blob'));
-    ({ getMockup, render, findSmartObjectByName } = require('./_sudomock-client'));
+    ({ getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName } = require('./_sudomock-client'));
     ({ buildBandImage } = require('./_build-band'));
+    ({ buildCapArtwork } = require('./_build-cap-artwork'));
     ({ PRODUCTS, PRODUCT_VARIATIONS } = require('./_mockup-config'));
   } catch (err) {
     console.error('DEPENDENCY LOAD FAILURE:', err);
@@ -52,7 +53,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    return await handlePost(req, res, { kv, put, getMockup, render, findSmartObjectByName, buildBandImage, PRODUCTS, PRODUCT_VARIATIONS });
+    return await handlePost(req, res, { kv, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, PRODUCTS, PRODUCT_VARIATIONS });
   } catch (err) {
     console.error('UNCAUGHT top-level error:', err);
     if (!res.headersSent) {
@@ -62,7 +63,7 @@ module.exports = async (req, res) => {
 };
 
 async function handlePost(req, res, deps) {
-  const { kv, put, getMockup, render, findSmartObjectByName, buildBandImage, PRODUCTS, PRODUCT_VARIATIONS } = deps;
+  const { kv, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, PRODUCTS, PRODUCT_VARIATIONS } = deps;
 
   let body;
   try {
@@ -144,7 +145,7 @@ async function handlePost(req, res, deps) {
 
   let designs;
   try {
-    designs = await generateAllDesigns({ logoUrl, primaryColor, secondaryColor, sessionId, put, getMockup, render, findSmartObjectByName, buildBandImage, PRODUCTS, PRODUCT_VARIATIONS });
+    designs = await generateAllDesigns({ logoUrl, logoBuffer, primaryColor, secondaryColor, sessionId, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, PRODUCTS, PRODUCT_VARIATIONS });
   } catch (err) {
     console.error('Mock-up generation failed:', err);
     return res.status(502).json({ code: 'GENERATION_FAILED', message: 'Could not generate mock-ups right now.', debug: String((err && err.message) || err) });
@@ -166,7 +167,7 @@ async function handlePost(req, res, deps) {
     images: designs.map((d) => d.url),
     productTypes: designs.map((d) => d.productType),
     message: tier === '1'
-      ? 'Here are your free concepts — 3 beanies, 2 caps and 3 bucket hats.'
+      ? `Here are your ${designs.length} custom headwear concepts.`
       : "Here's your next set — thanks, we'll be in touch.",
   });
 }
@@ -203,10 +204,18 @@ function withTimeout(promise, ms, label) {
   ]);
 }
 
-async function generateAllDesigns({ logoUrl, primaryColor, secondaryColor, sessionId, put, getMockup, render, findSmartObjectByName, buildBandImage, PRODUCTS, PRODUCT_VARIATIONS }) {
+async function generateAllDesigns({ logoUrl, logoBuffer, primaryColor, secondaryColor, sessionId, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, PRODUCTS, PRODUCT_VARIATIONS }) {
   const designs = [];
+  const enabledProducts = new Set(
+    String(process.env.ENABLED_PRODUCTS || 'cap')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)
+  );
 
   for (const [productKey, config] of Object.entries(PRODUCTS)) {
+    if (!enabledProducts.has(productKey)) continue;
+
     const mockupUuid = process.env[config.mockupUuidEnvVar];
     if (!mockupUuid) {
       throw new Error(`Missing env var ${config.mockupUuidEnvVar} — upload the ${productKey} PSD to SudoMock and set its mockup UUID.`);
@@ -216,6 +225,56 @@ async function generateAllDesigns({ logoUrl, primaryColor, secondaryColor, sessi
     const variationKeys = config.variationCount === 2 ? PRODUCT_VARIATIONS.slice(0, 2) : PRODUCT_VARIATIONS;
 
     for (const variationKey of variationKeys) {
+      if (config.artworkDriven && productKey === 'cap') {
+        const layers = {
+          front: findSmartObjectByName(mockupData, 'FRONT DESIGN'),
+          side: findSmartObjectByName(mockupData, 'SIDE DESIGN'),
+          peak: findSmartObjectByName(mockupData, 'PEAK DESIGN'),
+        };
+        const eyelet = findOptionalSmartObjectByName(mockupData, 'EYELET');
+        const topButton = findOptionalSmartObjectByName(mockupData, 'TOP BUTTON');
+        if (eyelet) layers.eyelet = eyelet;
+        if (topButton) layers.topButton = topButton;
+        const artwork = await buildCapArtwork({
+          logoBuffer,
+          primaryColor,
+          secondaryColor,
+          variationKey,
+          layers,
+        });
+        const smartObjects = [];
+
+        for (const [area, layer] of Object.entries(layers)) {
+          // Preserve the original transparent pixels/masks on the eyelets and
+          // top button. Replacing either with a solid image would fill the
+          // complete Smart Object rectangle instead of just the visible part.
+          if (area === 'eyelet' || area === 'topButton') {
+            const mainColour = variationKey === 'secondaryLed' ? secondaryColor : primaryColor;
+            smartObjects.push({ uuid: layer.uuid, color: { hex: mainColour } });
+            continue;
+          }
+
+          const blob = await withTimeout(
+            put(
+              `cap-artwork/${sessionId}-${variationKey}-${area}-${Date.now()}.png`,
+              artwork[area],
+              { access: 'public', contentType: 'image/png' }
+            ),
+            EXTERNAL_CALL_TIMEOUT_MS,
+            `Uploading cap ${area} artwork`
+          );
+          smartObjects.push({ uuid: layer.uuid, asset: { url: blob.url, fit: 'fill' } });
+        }
+
+        const renderedUrl = await withTimeout(
+          render(mockupUuid, smartObjects),
+          EXTERNAL_CALL_TIMEOUT_MS,
+          `Rendering ${productKey} ${variationKey}`
+        );
+        designs.push({ url: renderedUrl, productType: productKey, variation: variationKey });
+        continue;
+      }
+
       const zoneAssignment = config.colourZones[variationKey];
       const smartObjects = [];
 

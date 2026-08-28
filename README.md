@@ -7,11 +7,21 @@ Every render uses the customer's real uploaded logo and their two chosen
 colours (primary/secondary), mapped onto the exact layers we confirmed
 directly against your files.
 
-## What this produces
+## Current production scope
 
-One free "generate" click returns **8 designs**: 3 beanie variations,
-2 cap variations, 3 bucket hat variations — each a genuine render of your
-real template, not an approximation.
+The production default is currently **caps only**, returning two colour
+variations per generation. This keeps the live Shopify flow reliable while
+the bucket-hat and beanie templates are prepared. Set `ENABLED_PRODUCTS` to a
+comma-separated list (for example `cap,bucketHat`) when another template is
+ready.
+
+The cap pipeline automatically prepares the uploaded customer logo, removes
+an edge-connected white background, sizes and centres it consistently, and
+builds complete artwork for `FRONT DESIGN`, `SIDE DESIGN`, and `PEAK DESIGN`.
+If the cap PSD also contains `EYELET` and `TOP BUTTON` Smart Objects, colour
+overlays preserve their original transparent shapes while making them follow
+the front/main colour automatically. The original white Noggin Sport
+side logo is preserved at its fixed supplied size and position.
 
 ## Setup
 
@@ -40,6 +50,7 @@ In Vercel → Settings → Environment Variables, add:
 | `SUDOMOCK_BEANIE_MOCKUP_UUID` | From step 1 |
 | `SUDOMOCK_CAP_MOCKUP_UUID` | From step 1 |
 | `SUDOMOCK_BUCKET_HAT_MOCKUP_UUID` | From step 1 |
+| `ENABLED_PRODUCTS` | `cap` while caps are the only production-ready product |
 
 ### 4. Bucket hat crest layer — already renamed
 
@@ -73,10 +84,12 @@ changes needed for this part.
 ## Testing before going live
 
 1. Upload a real logo through the Shopify site once this is all wired up.
-2. Check all 8 renders actually reflect your chosen colours and the real logo.
-3. Specifically check the bucket hat crest lands in the right spot (this is
+2. Check both cap renders reflect the chosen colours and real logo.
+3. Confirm the eyelets and top button follow the front colour and the fixed
+   white Noggin Sport logo remains visible on the side panel.
+4. Specifically check the bucket hat crest lands in the right spot (this is
    the one area with a naming ambiguity — see step 4 above).
-4. Check the beanie's band looks right — flat colour + wordmark, sized
+5. Check the beanie's band looks right — flat colour + wordmark, sized
    sensibly. If the wordmark looks too big/small, adjust the `0.55` ratio
    in `_build-band.js`.
 

@@ -65,4 +65,10 @@ function findSmartObjectByName(mockupData, layerName) {
   return match;
 }
 
-module.exports = { getMockup, render, findSmartObjectByName };
+function findOptionalSmartObjectByName(mockupData, layerName) {
+  return mockupData.smart_objects.find(
+    (so) => so.name === layerName || so.layer_name === layerName
+  ) || null;
+}
+
+module.exports = { getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName };

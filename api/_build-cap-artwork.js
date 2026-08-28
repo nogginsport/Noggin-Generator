@@ -1,0 +1,166 @@
+const { Jimp, JimpMime } = require('jimp');
+const path = require('path');
+
+const SIDE_LOGO_PATH = path.join(__dirname, '..', 'assets', 'noggin-sport-side-logo.png');
+
+// Coordinates measured directly from the original SIDE DESIGN smart object
+// (1712 x 1989). Keeping these fixed preserves Noggin's supplied branding.
+const SIDE_REFERENCE = {
+  width: 1712,
+  height: 1989,
+  logoX: 285,
+  logoY: 1633,
+  logoWidth: 456,
+  logoHeight: 177,
+};
+
+async function buildCapArtwork({ logoBuffer, primaryColor, secondaryColor, variationKey, layers }) {
+  const colours = variationKey === 'secondaryLed'
+    ? { front: secondaryColor, side: primaryColor, peak: primaryColor }
+    : { front: primaryColor, side: secondaryColor, peak: secondaryColor };
+
+  const preparedLogo = await prepareCustomerLogo(logoBuffer);
+
+  const artwork = {
+    front: await buildFrontPanel(preparedLogo, colours.front, layers.front.size.width, layers.front.size.height),
+    side: await buildSidePanel(colours.side, layers.side.size.width, layers.side.size.height),
+    peak: await buildSolidPanel(colours.peak, layers.peak.size.width, layers.peak.size.height),
+  };
+
+  return artwork;
+}
+
+async function buildFrontPanel(preparedLogo, colour, width, height) {
+  const canvas = new Jimp({ width, height, color: hexToJimpInt(colour) });
+
+  // The approved visual calibration: crest occupies at most 35% of the
+  // smart-object height/width and sits 11% below mathematical centre.
+  const maxWidth = Math.round(width * 0.35);
+  const maxHeight = Math.round(height * 0.35);
+  const scale = Math.min(maxWidth / preparedLogo.width, maxHeight / preparedLogo.height);
+  const logoWidth = Math.max(1, Math.round(preparedLogo.width * scale));
+  const logo = preparedLogo.clone().resize({ w: logoWidth });
+  const x = Math.round((width - logo.width) / 2);
+  const y = Math.round((height - logo.height) / 2 + height * 0.11);
+
+  canvas.composite(logo, x, y);
+  return canvas.getBuffer(JimpMime.png);
+}
+
+async function buildSidePanel(colour, width, height) {
+  const canvas = new Jimp({ width, height, color: hexToJimpInt(colour) });
+  const sideLogo = await Jimp.read(SIDE_LOGO_PATH);
+
+  const scaleX = width / SIDE_REFERENCE.width;
+  const scaleY = height / SIDE_REFERENCE.height;
+  const logoWidth = Math.round(SIDE_REFERENCE.logoWidth * scaleX);
+  sideLogo.resize({ w: logoWidth });
+
+  canvas.composite(
+    sideLogo,
+    Math.round(SIDE_REFERENCE.logoX * scaleX),
+    Math.round(SIDE_REFERENCE.logoY * scaleY)
+  );
+  return canvas.getBuffer(JimpMime.png);
+}
+
+async function buildSolidPanel(colour, width, height) {
+  const canvas = new Jimp({ width, height, color: hexToJimpInt(colour) });
+  return canvas.getBuffer(JimpMime.png);
+}
+
+async function prepareCustomerLogo(buffer) {
+  const img = await Jimp.read(buffer);
+
+  // Keep processing memory predictable in the serverless function.
+  const longestEdge = Math.max(img.width, img.height);
+  if (longestEdge > 2048) {
+    if (img.width >= img.height) img.resize({ w: 2048 });
+    else img.resize({ h: 2048 });
+  }
+
+  removeEdgeConnectedWhite(img);
+  const bounds = visibleBounds(img);
+  if (!bounds) throw new Error('The uploaded logo contains no visible pixels after background removal.');
+
+  return img.crop(bounds);
+}
+
+function removeEdgeConnectedWhite(img) {
+  const { width, height, data } = img.bitmap;
+  const pixelCount = width * height;
+  const visited = new Uint8Array(pixelCount);
+  const queue = new Int32Array(pixelCount);
+  let head = 0;
+  let tail = 0;
+
+  function enqueue(index) {
+    if (index < 0 || index >= pixelCount || visited[index]) return;
+    visited[index] = 1;
+    const offset = index * 4;
+    if (!isNearWhite(data, offset)) return;
+    queue[tail++] = index;
+  }
+
+  for (let x = 0; x < width; x += 1) {
+    enqueue(x);
+    enqueue((height - 1) * width + x);
+  }
+  for (let y = 0; y < height; y += 1) {
+    enqueue(y * width);
+    enqueue(y * width + width - 1);
+  }
+
+  while (head < tail) {
+    const index = queue[head++];
+    data[index * 4 + 3] = 0;
+    const x = index % width;
+    const y = Math.floor(index / width);
+    if (x > 0) enqueue(index - 1);
+    if (x + 1 < width) enqueue(index + 1);
+    if (y > 0) enqueue(index - width);
+    if (y + 1 < height) enqueue(index + width);
+  }
+}
+
+function isNearWhite(data, offset) {
+  const alpha = data[offset + 3];
+  if (alpha === 0) return true;
+  return data[offset] >= 238 && data[offset + 1] >= 238 && data[offset + 2] >= 238;
+}
+
+function visibleBounds(img) {
+  const { width, height, data } = img.bitmap;
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (data[(y * width + x) * 4 + 3] > 8) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+  }
+
+  if (maxX < minX || maxY < minY) return null;
+  return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+}
+
+function hexToJimpInt(hex) {
+  const clean = hex.replace('#', '');
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return ((r << 24) | (g << 16) | (b << 8) | 0xff) >>> 0;
+}
+
+module.exports = {
+  buildCapArtwork,
+  prepareCustomerLogo,
+  SIDE_REFERENCE,
+};
