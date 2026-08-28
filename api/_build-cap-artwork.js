@@ -14,17 +14,13 @@ const SIDE_REFERENCE = {
   logoHeight: 177,
 };
 
-async function buildCapArtwork({ logoBuffer, primaryColor, secondaryColor, variationKey, layers }) {
-  const colours = variationKey === 'secondaryLed'
-    ? { front: secondaryColor, side: primaryColor, peak: primaryColor }
-    : { front: primaryColor, side: secondaryColor, peak: secondaryColor };
-
+async function buildCapArtwork({ logoBuffer, frontColor, sideColor, peakColor, nogginLogoColor, layers }) {
   const preparedLogo = await prepareCustomerLogo(logoBuffer);
 
   const artwork = {
-    front: await buildFrontPanel(preparedLogo, colours.front, layers.front.size.width, layers.front.size.height),
-    side: await buildSidePanel(colours.side, layers.side.size.width, layers.side.size.height),
-    peak: await buildSolidPanel(colours.peak, layers.peak.size.width, layers.peak.size.height),
+    front: await buildFrontPanel(preparedLogo, frontColor, layers.front.size.width, layers.front.size.height),
+    side: await buildSidePanel(sideColor, nogginLogoColor, layers.side.size.width, layers.side.size.height),
+    peak: await buildSolidPanel(peakColor, layers.peak.size.width, layers.peak.size.height),
   };
 
   return artwork;
@@ -47,9 +43,10 @@ async function buildFrontPanel(preparedLogo, colour, width, height) {
   return canvas.getBuffer(JimpMime.png);
 }
 
-async function buildSidePanel(colour, width, height) {
+async function buildSidePanel(colour, logoColour, width, height) {
   const canvas = new Jimp({ width, height, color: hexToJimpInt(colour) });
   const sideLogo = await Jimp.read(SIDE_LOGO_PATH);
+  recolourVisiblePixels(sideLogo, logoColour);
 
   const scaleX = width / SIDE_REFERENCE.width;
   const scaleY = height / SIDE_REFERENCE.height;
@@ -62,6 +59,21 @@ async function buildSidePanel(colour, width, height) {
     Math.round(SIDE_REFERENCE.logoY * scaleY)
   );
   return canvas.getBuffer(JimpMime.png);
+}
+
+function recolourVisiblePixels(image, hex) {
+  const clean = hex.replace('#', '');
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  const { data } = image.bitmap;
+
+  for (let offset = 0; offset < data.length; offset += 4) {
+    if (data[offset + 3] === 0) continue;
+    data[offset] = r;
+    data[offset + 1] = g;
+    data[offset + 2] = b;
+  }
 }
 
 async function buildSolidPanel(colour, width, height) {

@@ -4,7 +4,10 @@
 // Body: application/json — {
 //   logoBase64: "data:image/png;base64,...",
 //   logoMimeType: "image/png",
-//   primaryColor, secondaryColor (hex strings, e.g. "#4F6B3F"),
+//   capDesigns: [{
+//     frontColor, sideColor, peakColor, eyeletColor, topButtonColor,
+//     nogginLogoColor
+//   }],
 //   tier ("1" | "2"), sessionId, email (tier 2 only)
 // }
 //
@@ -78,6 +81,56 @@ async function handlePost(req, res, deps) {
   const email = body.email ? String(body.email).trim() : null;
   const primaryColor = String(body.primaryColor || '').trim();
   const secondaryColor = String(body.secondaryColor || '').trim();
+  // Cap controls are independent. Legacy primary/secondary values remain as
+  // fallbacks until the Shopify draft is switched to the three new controls.
+  const frontColor = String(body.frontColor || primaryColor).trim();
+  const sideColor = String(body.sideColor || secondaryColor || primaryColor).trim();
+  const peakColor = String(body.peakColor || secondaryColor || primaryColor).trim();
+  const nogginLogoColor = String(body.nogginLogoColor || '#FFFFFF').trim();
+  // When Shopify sends the two colours detected from the uploaded logo,
+  // these are the three approved Noggin starting concepts. Shopify can
+  // still send capDesigns to override any individual field after the
+  // customer changes a colour picker.
+  const presetCapDesigns = [
+    {
+      frontColor,
+      sideColor: frontColor,
+      peakColor: frontColor,
+      eyeletColor: secondaryColor || frontColor,
+      topButtonColor: secondaryColor || frontColor,
+      nogginLogoColor: secondaryColor || '#FFFFFF',
+    },
+    {
+      frontColor,
+      sideColor: frontColor,
+      peakColor: secondaryColor || frontColor,
+      eyeletColor: secondaryColor || frontColor,
+      topButtonColor: secondaryColor || frontColor,
+      nogginLogoColor: secondaryColor || '#FFFFFF',
+    },
+    {
+      frontColor: secondaryColor || frontColor,
+      sideColor: secondaryColor || frontColor,
+      peakColor: secondaryColor || frontColor,
+      eyeletColor: frontColor,
+      topButtonColor: frontColor,
+      nogginLogoColor: frontColor,
+    },
+  ];
+  const submittedCapDesigns = Array.isArray(body.capDesigns) && body.capDesigns.length
+    ? body.capDesigns.slice(0, 3)
+    : presetCapDesigns;
+  const capDesigns = submittedCapDesigns.map((design) => {
+    const designFront = String(design.frontColor || frontColor).trim();
+    return {
+      frontColor: designFront,
+      sideColor: String(design.sideColor || designFront).trim(),
+      peakColor: String(design.peakColor || designFront).trim(),
+      eyeletColor: String(design.eyeletColor || designFront).trim(),
+      topButtonColor: String(design.topButtonColor || designFront).trim(),
+      nogginLogoColor: String(design.nogginLogoColor || '#FFFFFF').trim(),
+    };
+  });
   const logoBase64 = body.logoBase64;
   const logoMimeType = body.logoMimeType || 'image/png';
 
@@ -98,8 +151,9 @@ async function handlePost(req, res, deps) {
       },
     });
   }
-  if (!/^#[0-9A-Fa-f]{6}$/.test(primaryColor) || !/^#[0-9A-Fa-f]{6}$/.test(secondaryColor)) {
-    return res.status(400).json({ code: 'BAD_REQUEST', message: 'primaryColor and secondaryColor must be hex, e.g. #4F6B3F.' });
+  const validHex = (value) => /^#[0-9A-Fa-f]{6}$/.test(value);
+  if (!capDesigns.every((design) => Object.values(design).every(validHex))) {
+    return res.status(400).json({ code: 'BAD_REQUEST', message: 'All cap colours must be six-digit hex values, e.g. #4F6B3F.' });
   }
   if (tier === '2' && !email) {
     return res.status(400).json({ code: 'EMAIL_REQUIRED', message: 'Add your email to unlock more designs.' });
@@ -145,7 +199,7 @@ async function handlePost(req, res, deps) {
 
   let designs;
   try {
-    designs = await generateAllDesigns({ logoUrl, logoBuffer, primaryColor, secondaryColor, sessionId, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, PRODUCTS, PRODUCT_VARIATIONS });
+    designs = await generateAllDesigns({ logoUrl, logoBuffer, primaryColor, secondaryColor, capDesigns, sessionId, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, PRODUCTS, PRODUCT_VARIATIONS });
   } catch (err) {
     console.error('Mock-up generation failed:', err);
     return res.status(502).json({ code: 'GENERATION_FAILED', message: 'Could not generate mock-ups right now.', debug: String((err && err.message) || err) });
@@ -204,7 +258,7 @@ function withTimeout(promise, ms, label) {
   ]);
 }
 
-async function generateAllDesigns({ logoUrl, logoBuffer, primaryColor, secondaryColor, sessionId, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, PRODUCTS, PRODUCT_VARIATIONS }) {
+async function generateAllDesigns({ logoUrl, logoBuffer, primaryColor, secondaryColor, capDesigns, sessionId, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, PRODUCTS, PRODUCT_VARIATIONS }) {
   const designs = [];
   const enabledProducts = new Set(
     String(process.env.ENABLED_PRODUCTS || 'cap')
@@ -222,10 +276,13 @@ async function generateAllDesigns({ logoUrl, logoBuffer, primaryColor, secondary
     }
 
     const mockupData = await withTimeout(getMockup(mockupUuid), EXTERNAL_CALL_TIMEOUT_MS, `Fetching ${productKey} mockup data`);
-    const variationKeys = config.variationCount === 2 ? PRODUCT_VARIATIONS.slice(0, 2) : PRODUCT_VARIATIONS;
+    const variationKeys = productKey === 'cap'
+      ? capDesigns.map((_, index) => `design${index + 1}`)
+      : (config.variationCount === 2 ? PRODUCT_VARIATIONS.slice(0, 2) : PRODUCT_VARIATIONS);
 
-    for (const variationKey of variationKeys) {
+    for (const [variationIndex, variationKey] of variationKeys.entries()) {
       if (config.artworkDriven && productKey === 'cap') {
+        const capDesign = capDesigns[variationIndex];
         const layers = {
           front: findSmartObjectByName(mockupData, 'FRONT DESIGN'),
           side: findSmartObjectByName(mockupData, 'SIDE DESIGN'),
@@ -237,9 +294,10 @@ async function generateAllDesigns({ logoUrl, logoBuffer, primaryColor, secondary
         if (topButton) layers.topButton = topButton;
         const artwork = await buildCapArtwork({
           logoBuffer,
-          primaryColor,
-          secondaryColor,
-          variationKey,
+          frontColor: capDesign.frontColor,
+          sideColor: capDesign.sideColor,
+          peakColor: capDesign.peakColor,
+          nogginLogoColor: capDesign.nogginLogoColor,
           layers,
         });
         const smartObjects = [];
@@ -248,9 +306,12 @@ async function generateAllDesigns({ logoUrl, logoBuffer, primaryColor, secondary
           // Preserve the original transparent pixels/masks on the eyelets and
           // top button. Replacing either with a solid image would fill the
           // complete Smart Object rectangle instead of just the visible part.
-          if (area === 'eyelet' || area === 'topButton') {
-            const mainColour = variationKey === 'secondaryLed' ? secondaryColor : primaryColor;
-            smartObjects.push({ uuid: layer.uuid, color: { hex: mainColour } });
+          if (area === 'eyelet') {
+            smartObjects.push({ uuid: layer.uuid, color: { hex: capDesign.eyeletColor } });
+            continue;
+          }
+          if (area === 'topButton') {
+            smartObjects.push({ uuid: layer.uuid, color: { hex: capDesign.topButtonColor } });
             continue;
           }
 
