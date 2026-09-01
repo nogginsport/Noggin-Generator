@@ -197,16 +197,28 @@ async function handlePost(req, res, deps) {
   }
 
   let logoUrl;
+let bucketHatLogoUrl;
   try {
     // Generic headwear Smart Objects receive a tightly cropped transparent
     // PNG, preventing flat JPG/PNG backgrounds from appearing as a box.
     const preparedLogoBuffer = await prepareCustomerLogoBuffer(logoBuffer);
-    const blob = await withTimeout(
-      put(`logos/${sessionId}-${Date.now()}.png`, preparedLogoBuffer, { access: 'public', contentType: 'image/png' }),
-      EXTERNAL_CALL_TIMEOUT_MS,
-      'Uploading your logo'
-    );
-    logoUrl = blob.url;
+const bucketHatLogoBuffer = await prepareCustomerLogoBuffer(logoBuffer, 0.35);
+const timestamp = Date.now();
+
+const blob = await withTimeout(
+  put(`logos/${sessionId}-${timestamp}.png`, preparedLogoBuffer, { access: 'public', contentType: 'image/png' }),
+  EXTERNAL_CALL_TIMEOUT_MS,
+  'Uploading your logo'
+);
+
+const bucketHatBlob = await withTimeout(
+  put(`logos/${sessionId}-bucket-${timestamp}.png`, bucketHatLogoBuffer, { access: 'public', contentType: 'image/png' }),
+  EXTERNAL_CALL_TIMEOUT_MS,
+  'Uploading your bucket-hat logo'
+);
+
+logoUrl = blob.url;
+bucketHatLogoUrl = bucketHatBlob.url;
   } catch (err) {
     console.error('Logo upload failed:', err);
     return res.status(502).json({ code: 'UPLOAD_FAILED', message: 'Could not process your logo.', debug: String((err && err.message) || err) });
@@ -214,7 +226,7 @@ async function handlePost(req, res, deps) {
 
   let designs;
   try {
-    designs = await generateAllDesigns({ logoUrl, logoBuffer, primaryColor, secondaryColor, capDesigns, sessionId, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, PRODUCTS, PRODUCT_VARIATIONS });
+    designs = await generateAllDesigns({ logoUrl, bucketHatLogoUrl, logoBuffer, primaryColor, secondaryColor, capDesigns, sessionId, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, PRODUCTS, PRODUCT_VARIATIONS });
   } catch (err) {
     console.error('Mock-up generation failed:', err);
     return res.status(502).json({ code: 'GENERATION_FAILED', message: 'Could not generate mock-ups right now.', debug: String((err && err.message) || err) });
@@ -273,7 +285,7 @@ function withTimeout(promise, ms, label) {
   ]);
 }
 
-async function generateAllDesigns({ logoUrl, logoBuffer, primaryColor, secondaryColor, capDesigns, sessionId, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, PRODUCTS, PRODUCT_VARIATIONS }) {
+async function generateAllDesigns({ logoUrl, bucketHatLogoUrl, logoBuffer, primaryColor, secondaryColor, capDesigns, sessionId, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, PRODUCTS, PRODUCT_VARIATIONS }) {
   const designs = [];
   const enabledProducts = new Set(
     String(process.env.ENABLED_PRODUCTS || 'cap')
