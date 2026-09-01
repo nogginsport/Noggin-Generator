@@ -16,19 +16,40 @@
 const PRODUCTS = {
   beanie: {
     mockupUuidEnvVar: 'SUDOMOCK_BEANIE_MOCKUP_UUID',
-    logoLayerName: 'BOTTOM LABEL', // customer's crest, confirmed via Photoshop
-    // Colour zones and which of the customer's two picks each one takes.
-    // 'primary' / 'secondary' — swap these two arrays to produce the
-    // alternate variation (see PRODUCT_VARIATIONS below).
+    logoLayerName: 'CUSTOMER LOGO',
+    // The body and cuff deliberately share the primary colour in every
+    // design. Both thin stripes also share one colour. The two pom colours
+    // remain independently addressable in SudoMock.
     colourZones: {
-      primaryLed:   { 'CROWN COLOR': 'primary', 'CUFF COLOR': 'primary',   'TOP LABEL BAND': 'secondary', 'PART COLOR': 'primary',   'POM-POM COLOR': 'secondary' },
-      secondaryLed: { 'CROWN COLOR': 'secondary', 'CUFF COLOR': 'secondary', 'TOP LABEL BAND': 'primary',   'PART COLOR': 'secondary', 'POM-POM COLOR': 'primary' },
-      balanced:     { 'CROWN COLOR': 'primary', 'CUFF COLOR': 'secondary', 'TOP LABEL BAND': 'secondary', 'PART COLOR': 'primary',   'POM-POM COLOR': 'secondary' },
+      primaryLed: {
+        'MAIN BODY COLOUR': 'primary',
+        'CUFF COLOUR': 'primary',
+        'STRIPES': '#FFFFFF',
+        'MIDDLE BAND': 'secondary',
+        'NOGGIN LOGO': '#FFFFFF',
+        'POM COLOUR 1': 'primary',
+        'POM COLOUR 2': 'secondary',
+      },
+      secondaryLed: {
+        'MAIN BODY COLOUR': 'primary',
+        'CUFF COLOUR': 'primary',
+        'STRIPES': 'secondary',
+        'MIDDLE BAND': 'primary',
+        'NOGGIN LOGO': 'secondary',
+        'POM COLOUR 1': 'primary',
+        'POM COLOUR 2': 'secondary',
+      },
+      balanced: {
+        'MAIN BODY COLOUR': 'primary',
+        'CUFF COLOUR': 'primary',
+        'STRIPES': 'secondary',
+        'MIDDLE BAND': '#FFFFFF',
+        'NOGGIN LOGO': 'secondary',
+        'POM COLOUR 1': 'primary',
+        'POM COLOUR 2': 'secondary',
+      },
     },
-    // The "noggin" wordmark band is composited in code (see build-band.js),
-    // not driven by a Photoshop layer — see the wordmark/nested-smart-object
-    // conversation for why.
-    hasCompositeBand: true,
+    variationCount: 3,
   },
 
   cap: {
