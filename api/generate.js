@@ -389,7 +389,13 @@ async function generateAllDesigns({ logoUrl, bucketHatLogoUrl, logoBuffer, prima
 
       const logoUuid = config.layerUuids && config.layerUuids[config.logoLayerName];
       const logoLayer = logoUuid ? { uuid: logoUuid } : findSmartObjectByName(mockupData, config.logoLayerName);
-      smartObjects.push({ uuid: logoLayer.uuid, asset: { url: logoUrl, fit: 'fit' } });
+     smartObjects.push({
+  uuid: logoLayer.uuid,
+  asset: {
+    url: productKey === 'bucketHat' ? bucketHatLogoUrl : logoUrl,
+    fit: 'fit',
+  },
+});
 
       const renderedUrl = await withTimeout(render(mockupUuid, smartObjects), EXTERNAL_CALL_TIMEOUT_MS, `Rendering ${productKey} ${variationKey}`);
       designs.push({ url: renderedUrl, productType: productKey, variation: variationKey });
