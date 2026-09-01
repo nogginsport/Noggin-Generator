@@ -17,6 +17,18 @@ const PRODUCTS = {
   beanie: {
     mockupUuidEnvVar: 'SUDOMOCK_BEANIE_MOCKUP_UUID',
     logoLayerName: 'CUSTOMER LOGO',
+    // Direct SudoMock UUIDs are used for this PSD because its API does not
+    // consistently expose the same names shown in the dashboard.
+    layerUuids: {
+      'CUSTOMER LOGO': 'a0d1e04b-ab66-4d36-a05a-f4d819640948',
+      'MAIN BODY COLOUR': 'c94a0f42-cabc-4787-973c-ac85e8d25631',
+      'CUFF COLOUR': 'c4e56e71-314b-4928-ae0f-b4a8b45ca8ce',
+      'STRIPES': '3e8b2036-def0-4a96-a5a4-2409cd289438',
+      'MIDDLE BAND': 'e0cf21ce-1615-403f-aaa8-c9957ea3bfd8',
+      'NOGGIN LOGO': '2a928716-7080-48ec-8d65-c784a0a6c0a2',
+      'POM COLOUR 1': 'bd7b4936-1c82-482a-8486-6513fccfff34',
+      'POM COLOUR 2': 'fbab41c9-a297-4896-bd79-6b776bc255bd',
+    },
     // The body and cuff deliberately share the primary colour in every
     // design. Both thin stripes also share one colour. The two pom colours
     // remain independently addressable in SudoMock.
