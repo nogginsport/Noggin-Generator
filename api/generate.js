@@ -344,7 +344,8 @@ async function generateAllDesigns({ logoUrl, logoBuffer, primaryColor, secondary
 
       for (const [layerName, whichColour] of Object.entries(zoneAssignment)) {
         if (layerName === 'TOP LABEL BAND') continue;
-        const so = findSmartObjectByName(mockupData, layerName);
+        const layerUuid = config.layerUuids && config.layerUuids[layerName];
+        const so = layerUuid ? { uuid: layerUuid } : findSmartObjectByName(mockupData, layerName);
         const hex = whichColour === 'primary' ? primaryColor : whichColour === 'secondary' ? secondaryColor : whichColour;
         smartObjects.push({ uuid: so.uuid, color: { hex } });
       }
@@ -362,7 +363,8 @@ async function generateAllDesigns({ logoUrl, logoBuffer, primaryColor, secondary
         smartObjects.push({ uuid: bandLayer.uuid, asset: { url: bandBlob.url, fit: 'fill' } });
       }
 
-      const logoLayer = findSmartObjectByName(mockupData, config.logoLayerName);
+      const logoUuid = config.layerUuids && config.layerUuids[config.logoLayerName];
+      const logoLayer = logoUuid ? { uuid: logoUuid } : findSmartObjectByName(mockupData, config.logoLayerName);
       smartObjects.push({ uuid: logoLayer.uuid, asset: { url: logoUrl, fit: 'fit' } });
 
       const renderedUrl = await withTimeout(render(mockupUuid, smartObjects), EXTERNAL_CALL_TIMEOUT_MS, `Rendering ${productKey} ${variationKey}`);
