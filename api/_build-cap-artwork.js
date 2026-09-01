@@ -81,9 +81,23 @@ async function buildSolidPanel(colour, width, height) {
   return canvas.getBuffer(JimpMime.png);
 }
 
-async function prepareCustomerLogoBuffer(buffer) {
+async function prepareCustomerLogoBuffer(buffer, paddingRatio = 0) {
   const preparedLogo = await prepareCustomerLogo(buffer);
-  return preparedLogo.getBuffer(JimpMime.png);
+
+  if (paddingRatio <= 0) {
+    return preparedLogo.getBuffer(JimpMime.png);
+  }
+
+  const paddingX = Math.round(preparedLogo.width * paddingRatio);
+  const paddingY = Math.round(preparedLogo.height * paddingRatio);
+  const canvas = new Jimp({
+    width: preparedLogo.width + (paddingX * 2),
+    height: preparedLogo.height + (paddingY * 2),
+    color: 0x00000000,
+  });
+
+  canvas.composite(preparedLogo, paddingX, paddingY);
+  return canvas.getBuffer(JimpMime.png);
 }
 
 async function prepareCustomerLogo(buffer) {
