@@ -273,7 +273,7 @@ async function generateAllDesigns({ logoUrl, logoBuffer, primaryColor, secondary
   for (const [productKey, config] of Object.entries(PRODUCTS)) {
     if (!enabledProducts.has(productKey)) continue;
 
-    const mockupUuid = process.env[config.mockupUuidEnvVar];
+    const mockupUuid = process.env[config.mockupUuidEnvVar] || config.mockupUuid;
     if (!mockupUuid) {
       throw new Error(`Missing env var ${config.mockupUuidEnvVar} — upload the ${productKey} PSD to SudoMock and set its mockup UUID.`);
     }
