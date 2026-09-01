@@ -202,7 +202,7 @@ let bucketHatLogoUrl;
     // Generic headwear Smart Objects receive a tightly cropped transparent
     // PNG, preventing flat JPG/PNG backgrounds from appearing as a box.
     const preparedLogoBuffer = await prepareCustomerLogoBuffer(logoBuffer);
-const bucketHatLogoBuffer = await prepareCustomerLogoBuffer(logoBuffer, 0.35);
+const bucketHatLogoBuffer = await prepareCustomerLogoBuffer(logoBuffer, 0.42);
 const timestamp = Date.now();
 
 const blob = await withTimeout(
