@@ -79,8 +79,20 @@ async function handlePost(req, res, deps) {
   const sessionId = String(body.sessionId || '').trim();
   const tier = String(body.tier || '1').trim();
   const email = body.email ? String(body.email).trim() : null;
-  const primaryColor = String(body.primaryColor || '').trim();
-  const secondaryColor = String(body.secondaryColor || '').trim();
+  // The current Shopify cap UI sends capDesigns rather than the legacy
+  // primaryColor/secondaryColor fields. Reuse Concept 1's front and accent
+  // colours for beanies so both products work from the same submission.
+  const firstSubmittedCapDesign = Array.isArray(body.capDesigns) ? body.capDesigns[0] || {} : {};
+  const primaryColor = String(
+    body.primaryColor || body.frontColor || firstSubmittedCapDesign.frontColor || ''
+  ).trim();
+  const secondaryColor = String(
+    body.secondaryColor ||
+    body.sideColor ||
+    firstSubmittedCapDesign.eyeletColor ||
+    firstSubmittedCapDesign.peakColor ||
+    primaryColor
+  ).trim();
   // Cap controls are independent. Legacy primary/secondary values remain as
   // fallbacks until the Shopify draft is switched to the three new controls.
   const frontColor = String(body.frontColor || primaryColor).trim();
