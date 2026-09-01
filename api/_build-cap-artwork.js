@@ -81,6 +81,11 @@ async function buildSolidPanel(colour, width, height) {
   return canvas.getBuffer(JimpMime.png);
 }
 
+async function prepareCustomerLogoBuffer(buffer) {
+  const preparedLogo = await prepareCustomerLogo(buffer);
+  return preparedLogo.getBuffer(JimpMime.png);
+}
+
 async function prepareCustomerLogo(buffer) {
   const img = await Jimp.read(buffer);
 
@@ -221,5 +226,6 @@ function hexToJimpInt(hex) {
 module.exports = {
   buildCapArtwork,
   prepareCustomerLogo,
+  prepareCustomerLogoBuffer,
   SIDE_REFERENCE,
 };
