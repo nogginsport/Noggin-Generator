@@ -81,14 +81,30 @@ const PRODUCTS = {
     variationCount: 2,
   },
 
-  bucketHat: {
+    bucketHat: {
     mockupUuidEnvVar: 'SUDOMOCK_BUCKET_HAT_MOCKUP_UUID',
-    logoLayerName: 'BUCKET HAT CREST', // renamed from the ambiguous "BUCKET HAT DESIGN" (x3 duplicate names) — confirmed unique
+    logoLayerName: 'BUCKET HAT CREST',
     colourZones: {
-      primaryLed:   { 'BUCKET HAT COLOR': 'primary', 'PART 1 COLOR': 'primary', 'PART 3 COLOR': 'primary', 'PART 4 COLOR': 'primary', 'PART 2 COLOR': 'secondary' },
-      secondaryLed: { 'BUCKET HAT COLOR': 'secondary', 'PART 1 COLOR': 'secondary', 'PART 3 COLOR': 'secondary', 'PART 4 COLOR': 'secondary', 'PART 2 COLOR': 'primary' },
-      balanced:     { 'BUCKET HAT COLOR': 'primary', 'PART 1 COLOR': 'primary', 'PART 3 COLOR': 'secondary', 'PART 4 COLOR': 'secondary', 'PART 2 COLOR': 'primary' },
+      primaryLed: {
+        'BUCKET HAT COLOUR': 'primary',
+        'BUCKET HAT DESIGN': 'primary',
+        'BUCKET HAT TOP': 'secondary',
+        'BUCKET HAT EDGE': 'secondary',
+      },
+      secondaryLed: {
+        'BUCKET HAT COLOUR': 'secondary',
+        'BUCKET HAT DESIGN': 'secondary',
+        'BUCKET HAT TOP': 'primary',
+        'BUCKET HAT EDGE': 'primary',
+      },
+      balanced: {
+        'BUCKET HAT COLOUR': 'primary',
+        'BUCKET HAT DESIGN': 'secondary',
+        'BUCKET HAT TOP': 'primary',
+        'BUCKET HAT EDGE': 'secondary',
+      },
     },
+    variationCount: 3,
   },
 };
 
