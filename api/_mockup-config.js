@@ -16,6 +16,7 @@
 const PRODUCTS = {
   beanie: {
     mockupUuidEnvVar: 'SUDOMOCK_BEANIE_MOCKUP_UUID',
+    mockupUuid: '85f95510-b67f-4486-914d-2cc743bafb4b',
     logoLayerName: 'CUSTOMER LOGO',
     // Direct SudoMock UUIDs are used for this PSD because its API does not
     // consistently expose the same names shown in the dashboard.
