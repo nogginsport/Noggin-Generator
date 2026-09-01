@@ -42,13 +42,13 @@ module.exports = async (req, res) => {
     return res.status(405).json({ code: 'METHOD_NOT_ALLOWED', message: 'Use POST.' });
   }
 
-  let kv, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, PRODUCTS, PRODUCT_VARIATIONS;
+  let kv, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, prepareCustomerLogoBuffer, PRODUCTS, PRODUCT_VARIATIONS;
   try {
     ({ kv } = require('@vercel/kv'));
     ({ put } = require('@vercel/blob'));
     ({ getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName } = require('./_sudomock-client'));
     ({ buildBandImage } = require('./_build-band'));
-    ({ buildCapArtwork } = require('./_build-cap-artwork'));
+    ({ buildCapArtwork, prepareCustomerLogoBuffer } = require('./_build-cap-artwork'));
     ({ PRODUCTS, PRODUCT_VARIATIONS } = require('./_mockup-config'));
   } catch (err) {
     console.error('DEPENDENCY LOAD FAILURE:', err);
@@ -56,7 +56,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    return await handlePost(req, res, { kv, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, PRODUCTS, PRODUCT_VARIATIONS });
+    return await handlePost(req, res, { kv, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, prepareCustomerLogoBuffer, PRODUCTS, PRODUCT_VARIATIONS });
   } catch (err) {
     console.error('UNCAUGHT top-level error:', err);
     if (!res.headersSent) {
@@ -66,7 +66,7 @@ module.exports = async (req, res) => {
 };
 
 async function handlePost(req, res, deps) {
-  const { kv, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, PRODUCTS, PRODUCT_VARIATIONS } = deps;
+  const { kv, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, prepareCustomerLogoBuffer, PRODUCTS, PRODUCT_VARIATIONS } = deps;
 
   let body;
   try {
@@ -186,8 +186,11 @@ async function handlePost(req, res, deps) {
 
   let logoUrl;
   try {
+    // Generic headwear Smart Objects receive a tightly cropped transparent
+    // PNG, preventing flat JPG/PNG backgrounds from appearing as a box.
+    const preparedLogoBuffer = await prepareCustomerLogoBuffer(logoBuffer);
     const blob = await withTimeout(
-      put(`logos/${sessionId}-${Date.now()}.png`, logoBuffer, { access: 'public', contentType: logoMimeType }),
+      put(`logos/${sessionId}-${Date.now()}.png`, preparedLogoBuffer, { access: 'public', contentType: 'image/png' }),
       EXTERNAL_CALL_TIMEOUT_MS,
       'Uploading your logo'
     );
@@ -342,7 +345,7 @@ async function generateAllDesigns({ logoUrl, logoBuffer, primaryColor, secondary
       for (const [layerName, whichColour] of Object.entries(zoneAssignment)) {
         if (layerName === 'TOP LABEL BAND') continue;
         const so = findSmartObjectByName(mockupData, layerName);
-        const hex = whichColour === 'primary' ? primaryColor : secondaryColor;
+        const hex = whichColour === 'primary' ? primaryColor : whichColour === 'secondary' ? secondaryColor : whichColour;
         smartObjects.push({ uuid: so.uuid, color: { hex } });
       }
 
