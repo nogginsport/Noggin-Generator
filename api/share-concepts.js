@@ -49,11 +49,12 @@ module.exports = async function handler(req, res) {
     const imageBuffer = Buffer.from(base64, 'base64');
 
     const blob = await put(
-      `concept-sheets/${sessionId}-${Date.now()}.jpg`,
+     `noggin-designs-${Date.now().toString(36)}.jpg`,
       imageBuffer,
       {
         access: 'public',
-        contentType: 'image/jpeg'
+        contentType: 'image/jpeg',
+        addRandomSuffix: false
       }
     );
 
