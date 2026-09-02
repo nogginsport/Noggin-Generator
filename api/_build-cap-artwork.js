@@ -81,24 +81,40 @@ async function buildSolidPanel(colour, width, height) {
   return canvas.getBuffer(JimpMime.png);
 }
 
-async function prepareCustomerLogoBuffer(buffer, paddingRatio = 0) {
+async function prepareCustomerLogoBuffer(buffer, paddingRatio = 0, targetAspectRatio = null) {
   const preparedLogo = await prepareCustomerLogo(buffer);
 
-  if (paddingRatio <= 0) {
+  if (paddingRatio <= 0 && !targetAspectRatio) {
     return preparedLogo.getBuffer(JimpMime.png);
   }
 
-  const paddingX = Math.round(preparedLogo.width * paddingRatio);
-  const paddingY = Math.round(preparedLogo.height * paddingRatio);
+  let canvasWidth = preparedLogo.width * (1 + (paddingRatio * 2));
+  let canvasHeight = preparedLogo.height * (1 + (paddingRatio * 2));
+
+  if (targetAspectRatio) {
+    if ((canvasWidth / canvasHeight) < targetAspectRatio) {
+      canvasWidth = canvasHeight * targetAspectRatio;
+    } else {
+      canvasHeight = canvasWidth / targetAspectRatio;
+    }
+  }
+
+  canvasWidth = Math.round(canvasWidth);
+  canvasHeight = Math.round(canvasHeight);
+
   const canvas = new Jimp({
-    width: preparedLogo.width + (paddingX * 2),
-    height: preparedLogo.height + (paddingY * 2),
+    width: canvasWidth,
+    height: canvasHeight,
     color: 0x00000000,
   });
 
-  canvas.composite(preparedLogo, paddingX, paddingY);
+  const x = Math.round((canvasWidth - preparedLogo.width) / 2);
+  const y = Math.round((canvasHeight - preparedLogo.height) / 2);
+
+  canvas.composite(preparedLogo, x, y);
   return canvas.getBuffer(JimpMime.png);
 }
+  
 
 async function prepareCustomerLogo(buffer) {
   const img = await Jimp.read(buffer);
