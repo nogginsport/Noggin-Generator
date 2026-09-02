@@ -88,7 +88,7 @@ const PRODUCTS = {
       primaryLed: {
         'BUCKET HAT COLOUR': 'primary',
         'BUCKET HAT DESIGN': 'primary',
-        'BUCKET HAT TOP': 'secondary',
+        'BUCKET HAT TOP': 'primary',
         'BUCKET HAT EDGE': 'secondary',
       },
       secondaryLed: {
