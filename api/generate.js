@@ -369,12 +369,24 @@ async function generateAllDesigns({ logoUrl, bucketHatLogoUrl, logoBuffer, prima
 
       const zoneAssignment = config.colourZones[variationKey];
       const smartObjects = [];
-
+const secondaryIsWhite = /^#?(?:fff|ffffff)$/i.test(String(secondaryColor).trim());
       for (const [layerName, whichColour] of Object.entries(zoneAssignment)) {
         if (layerName === 'TOP LABEL BAND') continue;
         const layerUuid = config.layerUuids && config.layerUuids[layerName];
         const so = layerUuid ? { uuid: layerUuid } : findSmartObjectByName(mockupData, layerName);
-        const hex = whichColour === 'primary' ? primaryColor : whichColour === 'secondary' ? secondaryColor : whichColour;
+        const usePrimaryNogginLogo =
+  productKey === 'beanie' &&
+  layerName === 'NOGGIN LOGO' &&
+  secondaryIsWhite &&
+  (variationKey === 'primaryLed' || variationKey === 'balanced');
+
+const hex = usePrimaryNogginLogo
+  ? primaryColor
+  : whichColour === 'primary'
+    ? primaryColor
+    : whichColour === 'secondary'
+      ? secondaryColor
+      : whichColour;
         smartObjects.push({ uuid: so.uuid, color: { hex } });
       }
 
