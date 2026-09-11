@@ -4,7 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Noggin Internal Mock-up Studio</title>
-<style>.internal-options{margin:20px 0;padding:20px;background:#191f17;border-radius:16px;display:grid;gap:14px;color:white}.internal-options label{display:grid;gap:8px}.internal-options input,.ncg__swatches input:not([type=color]){padding:12px;border-radius:8px;border:1px solid #56634c;font:inherit;max-width:100%;box-sizing:border-box}.internal-options button{padding:14px;background:#b8ff31;color:#111;border:0;border-radius:8px;font-weight:bold;cursor:pointer}.ncg__swatches label{display:grid;gap:8px}html,body{margin:0;min-height:100%;background:#0b0f0b;font-family:Arial,Helvetica,sans-serif}</style>
+<style>
+.ncg .ncg__hex{display:block;width:125px;max-width:100%;margin-top:8px;padding:10px;border:1px solid #64715c;border-radius:8px;background:#fff;color:#111;font:16px monospace;box-sizing:border-box}
+.ncg .ncg__hex[aria-invalid="true"]{border:2px solid #d43b3b}
+.ncg .ncg__swap{margin:16px 0 10px;padding:12px 20px;border:0;border-radius:10px;background:#b8ff31;color:#111;font:700 15px Arial;cursor:pointer}
+html,body{margin:0;min-height:100%;background:#0b0f0b;font-family:Arial,Helvetica,sans-serif}</style>
 </head>
 <body>
 <section id="noggin-cap-generator-internal" class="ncg">
@@ -27,19 +31,14 @@
         <label>Primary Colour <input data-colour-a type="color" value="#0B2D6B"></label>
         <label>Secondary Colour <input data-colour-b type="color" value="#D6A514"></label>
       </div>
-      <small>Adjust these colours if needed, then generate your custom concepts.</small>
+      <button type="button" data-swap-colours class="ncg__swap">⇄ Swap colours</button>
+      <small>Enter a HEX code or use the colour picker. Swapping colours rebuilds the three concept presets.</small>
+      <p data-hex-error role="alert" style="color:#ffb4ab"></p>
     </div>
 
-    <div class="internal-options">
-<label>Internal access key <input data-internal-key type="password" autocomplete="off"></label>
-<label>Custom hat word <input data-custom-word maxlength="24" placeholder="Leave blank for Noggin"></label>
-<small>Caps and beanies only with custom wording. Up to 24 English letters/numbers; longer words appear smaller. Bucket hats keep the original template when no custom word is entered.</small>
-<button type="button" data-swap>⇄ Swap primary and secondary colours</button>
-<p data-colour-error role="alert"></p>
-</div>
-<div class="ncg__concepts" data-concepts hidden></div>
+    <div class="ncg__concepts" data-concepts hidden></div>
 
-    <button data-generate class="ncg__button" type="button" disabled>Create concepts →</button>
+    <button data-generate class="ncg__button" type="button" disabled>Create My 9 Concepts →</button>
     <p class="ncg__status" data-status aria-live="polite"></p>
     <div class="ncg__loading" data-loading hidden aria-hidden="true">
       <div class="ncg__loading-top">
@@ -341,7 +340,7 @@
   if (!root || root.dataset.ready) return;
   root.dataset.ready = 'true';
 
-  const API = new URL('/api/internal-generate', location.protocol === 'file:' ? 'https://noggin-generator.vercel.app' : location.origin).href;
+  const API = 'https://noggin-generator.vercel.app/api/generate';
   const fields = ['frontColor','sideColor','peakColor','eyeletColor','topButtonColor','nogginLogoColor'];
   const labels = {frontColor:'Front',sideColor:'Side',peakColor:'Peak',eyeletColor:'Eyelets',topButtonColor:'Top button',nogginLogoColor:'Noggin logo'};
   const logoInput = root.querySelector('[data-logo]');
@@ -497,6 +496,7 @@
           ${fields.map(field => `<label>${labels[field]}<input type="color" data-field="${field}" value="${design[field]}"></label>`).join('')}
         </div>
       </article>`).join('');
+    attachHexInputs(concepts);
     concepts.hidden = false;
   }
 
@@ -549,7 +549,7 @@
     try {
       const [a,b]=await dominantColours(logoDataUrl);
       colourAInput.value=a; colourBInput.value=b;
-      colourRows.forEach(row=>{row.hex.value=row.picker.value;row.ref.value='';});
+      colourAInput._hexInput.value=a;colourBInput._hexInput.value=b;
       detected.hidden=false;
       renderControls();
       generate.disabled=false;
@@ -557,49 +557,57 @@
     } catch(error){ status.textContent='We could not read that image. Please try a PNG, JPG or WebP logo.'; }
   });
 
-  let renderedColourNote = '';
-  const colourRows = [colourAInput,colourBInput].map((picker,index)=>{
-    const ref=document.createElement('input');ref.placeholder='Pantone reference, e.g. 2607 C';ref.maxLength=32;ref.setAttribute('aria-label',index?'Secondary Pantone reference':'Primary Pantone reference');
-    const hex=document.createElement('input');hex.value=picker.value;hex.placeholder='#500778';hex.setAttribute('aria-label',index?'Secondary HEX colour':'Primary HEX colour');
-    picker.parentElement.append(ref,hex);
-    picker.addEventListener('input',()=>{hex.value=picker.value;ref.value='';});
-    hex.addEventListener('change',()=>{if(/^#[0-9a-f]{6}$/i.test(hex.value.trim())){picker.value=hex.value.trim();renderControls();}});
-    ref.addEventListener('change',()=>{if(/^2607\s*C$/i.test(ref.value.trim())){hex.value='#500778';picker.value=hex.value;renderControls();}});
-    return {picker,ref,hex};
-  });
-  function validateColours(){
-    const valid=colourRows.every(row=>/^#[0-9a-f]{6}$/i.test(row.hex.value.trim()));
-    root.querySelector('[data-colour-error]').textContent=valid?'':'Enter a six-digit HEX colour for both colours.';
-    if(valid) colourRows.forEach(row=>row.picker.value=row.hex.value.trim());
-    return valid;
+  function normaliseHex(value){
+    let hex = String(value).trim().replace(/^#/, '');
+    if (/^[0-9a-f]{3}$/i.test(hex)) hex = hex.split('').map(c=>c+c).join('');
+    return /^[0-9a-f]{6}$/i.test(hex) ? '#'+hex.toUpperCase() : null;
   }
-  const note=document.createElement('small');
-  note.textContent='Pantone references are production notes; screen colours are approximate. 2607 C has a sample preview mapping. For other references enter the matching HEX from your approved colour guide.';
-  colourAInput.closest('[data-detected]').append(note);
-  root.querySelector('[data-swap]').addEventListener('click',()=>{
-    const a=colourRows[0],b=colourRows[1];
-    for(const key of ['picker','hex','ref']){const temp=a[key].value;a[key].value=b[key].value;b[key].value=temp;}
+  function attachHexInputs(container){
+    container.querySelectorAll('input[type="color"]').forEach(picker=>{
+      if(picker._hexInput) return;
+      const input=document.createElement('input');
+      input.type='text'; input.className='ncg__hex';input.value=picker.value.toUpperCase();
+      input.maxLength=7;input.placeholder='#FFFFFF';input.spellcheck=false;
+      input.setAttribute('aria-label',picker.parentElement.textContent.trim()+' HEX code');
+      input.setAttribute('aria-invalid','false');
+      picker.after(input);picker._hexInput=input;
+      picker.addEventListener('input',()=>{input.value=picker.value.toUpperCase();input.setAttribute('aria-invalid','false');root.querySelector('[data-hex-error]').textContent='';});
+      input.addEventListener('change',()=>{
+        const hex=normaliseHex(input.value);
+        input.setAttribute('aria-invalid',String(!hex));
+        root.querySelector('[data-hex-error]').textContent=hex?'':'Use a valid HEX code, such as #500778 or #FFF.';
+        if(hex){picker.value=hex;picker.dispatchEvent(new Event('input',{bubbles:true}));}
+      });
+    });
+  }
+  function validateHexInputs(){
+    const invalid=[...root.querySelectorAll('.ncg__hex')].find(input=>!normaliseHex(input.value));
+    if(invalid){invalid.setAttribute('aria-invalid','true');invalid.focus();root.querySelector('[data-hex-error]').textContent='Correct the highlighted HEX code before generating.';return false;}
+    return true;
+  }
+  attachHexInputs(detected);
+  root.querySelector('[data-swap-colours]').addEventListener('click',()=>{
+    if(!validateHexInputs()) return;
+    const a=colourAInput.value;
+    colourAInput.value=colourBInput.value;colourBInput.value=a;
+    colourAInput._hexInput.value=colourAInput.value.toUpperCase();
+    colourBInput._hexInput.value=colourBInput.value.toUpperCase();
     renderControls();
   });
   colourAInput.addEventListener('input',renderControls);
   colourBInput.addEventListener('input',renderControls);
 
   generate.addEventListener('click', async () => {
-    if(!logoDataUrl) return;
-    if(!root.querySelector('[data-internal-key]').value) {status.textContent='Enter your internal access key.';return;}
-    if(!/^[A-Za-z0-9 &\'!.-]{0,24}$/.test(root.querySelector('[data-custom-word]').value.trim())) {status.textContent='Use up to 24 English letters, numbers, spaces or basic punctuation.';return;}
-    if(!validateColours()) return;
+    if(!logoDataUrl || !validateHexInputs()) return;
     generate.disabled=true;
     results.innerHTML='';
     root.querySelector('[data-collection-ui]')?.remove();
     root.querySelector('[data-mobile-nav]')?.remove();
     root.querySelector('.ncg__share-all-wrap')?.remove();
     status.textContent='';
-    renderedColourNote = colourRows.map(row=>(row.ref.value.trim() ? row.ref.value.trim()+' / ' : '')+row.picker.value).join(' • ');
     startLoadingExperience();
     try {
-      const response=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','X-Internal-Key':root.querySelector('[data-internal-key]').value},body:JSON.stringify({
-        customWord:root.querySelector('[data-custom-word]').value.trim(),
+      const response=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
         logoBase64:logoDataUrl,
         logoMimeType,
         sessionId:`shopify-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -871,7 +879,7 @@ const customerLogo = logoDataUrl
 
   context.font = '400 30px Arial, sans-serif';
   context.fillText(
-    renderedColourNote,
+    'Nine custom headwear ideas created from your colours and logo',
     pagePadding,
     152
   );
