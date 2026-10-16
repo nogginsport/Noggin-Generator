@@ -1,4 +1,4 @@
-// api/generate.js
+const { brandColour } = require('./_live-logo-contrast');
 //
 // POST /api/generate
 // Body: application/json — {
@@ -47,8 +47,8 @@ module.exports = async (req, res) => {
     ({ kv } = require('@vercel/kv'));
     ({ put } = require('@vercel/blob'));
     ({ getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName } = require('./_sudomock-client'));
-    ({ buildBandImage } = require('./_build-band'));
-    ({ buildCapArtwork, prepareCustomerLogoBuffer } = require('./_build-cap-artwork'));
+    ({ buildBandImage } = require('./_live-build-band'));
+    ({ buildCapArtwork, prepareCustomerLogoBuffer } = require('./_live-build-cap-artwork'));
     ({ PRODUCTS, PRODUCT_VARIATIONS } = require('./_mockup-config'));
   } catch (err) {
     console.error('DEPENDENCY LOAD FAILURE:', err);
@@ -164,6 +164,7 @@ async function handlePost(req, res, deps) {
     });
   }
   const validHex = (value) => /^#[0-9A-Fa-f]{6}$/.test(value);
+  if (![primaryColor, secondaryColor].every(validHex)) return res.status(400).json({ code: 'BAD_REQUEST', message: 'Choose valid primary and secondary colours.' });
   if (!capDesigns.every((design) => Object.values(design).every(validHex))) {
     return res.status(400).json({ code: 'BAD_REQUEST', message: 'All cap colours must be six-digit hex values, e.g. #4F6B3F.' });
   }
@@ -196,41 +197,9 @@ async function handlePost(req, res, deps) {
     return res.status(429).json({ code: 'LIMIT_REACHED', message: "You've already unlocked your second set for this session." });
   }
 
-  let logoUrl;
-let bucketHatLogoUrl;
-  try {
-    // Generic headwear Smart Objects receive a tightly cropped transparent
-    // PNG, preventing flat JPG/PNG backgrounds from appearing as a box.
-    const preparedLogoBuffer = await prepareCustomerLogoBuffer(logoBuffer);
-const bucketHatLogoBuffer = await prepareCustomerLogoBuffer(
-  logoBuffer,
-  0.50,
-  4120 / 1408
-);
-const timestamp = Date.now();
-
-const blob = await withTimeout(
-  put(`logos/${sessionId}-${timestamp}.png`, preparedLogoBuffer, { access: 'public', contentType: 'image/png' }),
-  EXTERNAL_CALL_TIMEOUT_MS,
-  'Uploading your logo'
-);
-
-const bucketHatBlob = await withTimeout(
-  put(`logos/${sessionId}-bucket-${timestamp}.png`, bucketHatLogoBuffer, { access: 'public', contentType: 'image/png' }),
-  EXTERNAL_CALL_TIMEOUT_MS,
-  'Uploading your bucket-hat logo'
-);
-
-logoUrl = blob.url;
-bucketHatLogoUrl = bucketHatBlob.url;
-  } catch (err) {
-    console.error('Logo upload failed:', err);
-    return res.status(502).json({ code: 'UPLOAD_FAILED', message: 'Could not process your logo.', debug: String((err && err.message) || err) });
-  }
-
   let designs;
   try {
-    designs = await generateAllDesigns({ logoUrl, bucketHatLogoUrl, logoBuffer, primaryColor, secondaryColor, capDesigns, sessionId, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, PRODUCTS, PRODUCT_VARIATIONS });
+    designs = await generateAllDesigns({ prepareCustomerLogoBuffer, logoBuffer, primaryColor, secondaryColor, capDesigns, sessionId, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, PRODUCTS, PRODUCT_VARIATIONS });
   } catch (err) {
     console.error('Mock-up generation failed:', err);
     return res.status(502).json({ code: 'GENERATION_FAILED', message: 'Could not generate mock-ups right now.', debug: String((err && err.message) || err) });
@@ -283,14 +252,16 @@ function readJsonBody(req) {
 }
 
 function withTimeout(promise, ms, label) {
+  let timer;
   return Promise.race([
     promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)),
-  ]);
+    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms); }),
+  ]).finally(() => clearTimeout(timer));
 }
 
-async function generateAllDesigns({ logoUrl, bucketHatLogoUrl, logoBuffer, primaryColor, secondaryColor, capDesigns, sessionId, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, PRODUCTS, PRODUCT_VARIATIONS }) {
+async function generateAllDesigns({ prepareCustomerLogoBuffer, logoBuffer, primaryColor, secondaryColor, capDesigns, sessionId, put, getMockup, render, findSmartObjectByName, findOptionalSmartObjectByName, buildBandImage, buildCapArtwork, PRODUCTS, PRODUCT_VARIATIONS }) {
   const designs = [];
+  const logoAssets = new Map();
   const enabledProducts = new Set(
     String(process.env.ENABLED_PRODUCTS || 'cap')
       .split(',')
@@ -369,24 +340,15 @@ async function generateAllDesigns({ logoUrl, bucketHatLogoUrl, logoBuffer, prima
 
       const zoneAssignment = config.colourZones[variationKey];
       const smartObjects = [];
-const secondaryIsWhite = /^#?(?:fff|ffffff)$/i.test(String(secondaryColor).trim());
+      const resolveColour = key => key === 'primary' ? primaryColor : key === 'secondary' ? secondaryColor : key;
       for (const [layerName, whichColour] of Object.entries(zoneAssignment)) {
         if (layerName === 'TOP LABEL BAND') continue;
         const layerUuid = config.layerUuids && config.layerUuids[layerName];
         const so = layerUuid ? { uuid: layerUuid } : findSmartObjectByName(mockupData, layerName);
-        const usePrimaryNogginLogo =
-  productKey === 'beanie' &&
-  layerName === 'NOGGIN LOGO' &&
-  secondaryIsWhite &&
-  (variationKey === 'primaryLed' || variationKey === 'balanced');
-
-const hex = usePrimaryNogginLogo
-  ? primaryColor
-  : whichColour === 'primary'
-    ? primaryColor
-    : whichColour === 'secondary'
-      ? secondaryColor
-      : whichColour;
+        let hex = resolveColour(whichColour);
+        if (productKey === 'beanie' && layerName === 'NOGGIN LOGO') {
+          hex = brandColour(resolveColour(zoneAssignment['MIDDLE BAND']), hex, primaryColor);
+        }
         smartObjects.push({ uuid: so.uuid, color: { hex } });
       }
 
@@ -394,7 +356,7 @@ const hex = usePrimaryNogginLogo
         const bandLayer = findSmartObjectByName(mockupData, 'TOP LABEL');
         const bandColourKey = zoneAssignment['TOP LABEL BAND'];
         const bandHex = bandColourKey === 'primary' ? primaryColor : secondaryColor;
-        const bandImageBuffer = await buildBandImage(bandHex, bandLayer.size.width, bandLayer.size.height);
+        const bandImageBuffer = await buildBandImage(bandHex, bandLayer.size.width, bandLayer.size.height, primaryColor);
         const bandBlob = await withTimeout(
           put(`bands/${sessionId}-${productKey}-${variationKey}-${Date.now()}.png`, bandImageBuffer, { access: 'public', contentType: 'image/png' }),
           EXTERNAL_CALL_TIMEOUT_MS,
@@ -405,13 +367,22 @@ const hex = usePrimaryNogginLogo
 
       const logoUuid = config.layerUuids && config.layerUuids[config.logoLayerName];
       const logoLayer = logoUuid ? { uuid: logoUuid } : findSmartObjectByName(mockupData, config.logoLayerName);
-     smartObjects.push({
-  uuid: logoLayer.uuid,
-  asset: {
-    url: productKey === 'bucketHat' ? bucketHatLogoUrl : logoUrl,
-    fit: 'fit',
-  },
-});
+      // Render a separate readable customer mark for the fabric behind each crest.
+      // Beanie crests sit on the cuff; bucket crests sit on the design panel.
+      const fabric = resolveColour(zoneAssignment[productKey === 'beanie' ? 'CUFF COLOUR' : 'BUCKET HAT DESIGN']);
+      const cacheKey = `${productKey}:${fabric}`;
+      if (!logoAssets.has(cacheKey)) {
+        const buffer = await prepareCustomerLogoBuffer(
+          logoBuffer, productKey === 'bucketHat' ? 0.50 : 0,
+          productKey === 'bucketHat' ? 4120 / 1408 : 1, fabric
+        );
+        const blob = await withTimeout(
+          put(`logos/${sessionId}-${productKey}-${variationKey}-${Date.now()}.png`, buffer, { access: 'public', contentType: 'image/png' }),
+          EXTERNAL_CALL_TIMEOUT_MS, 'Uploading your logo'
+        );
+        logoAssets.set(cacheKey, blob.url);
+      }
+      smartObjects.push({ uuid: logoLayer.uuid, asset: { url: logoAssets.get(cacheKey), fit: 'fit' } });
 
       const renderedUrl = await withTimeout(render(mockupUuid, smartObjects), EXTERNAL_CALL_TIMEOUT_MS, `Rendering ${productKey} ${variationKey}`);
       designs.push({ url: renderedUrl, productType: productKey, variation: variationKey });
