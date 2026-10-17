@@ -1,0 +1,1202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Noggin Internal Mock-up Studio</title>
+<style>
+.ncg .ncg__hex{display:block;width:125px;max-width:100%;margin-top:8px;padding:10px;border:1px solid #64715c;border-radius:8px;background:#fff;color:#111;font:16px monospace;box-sizing:border-box}
+.ncg .ncg__hex[aria-invalid="true"]{border:2px solid #d43b3b}
+.ncg .ncg__swap{margin:16px 0 10px;padding:12px 20px;border:0;border-radius:10px;background:#b8ff31;color:#111;font:700 15px Arial;cursor:pointer}
+html,body{margin:0;min-height:100%;background:#0b0f0b;font-family:Arial,Helvetica,sans-serif}</style>
+</head>
+<body>
+<section id="noggin-cap-generator-internal" class="ncg">
+  <div class="ncg__inner">
+    <p class="ncg__eyebrow">DESIGN YOUR NOGGIN</p>
+    <h2>INTERNAL MOCK-UP STUDIO</h2>
+    <p class="ncg__intro">Upload a customer logo, adjust the colours and create nine custom headwear concepts.</p>
+
+    <label class="ncg__upload">
+      <span class="ncg__upload-title">1. Upload your logo</span>
+      <input data-logo type="file" accept="image/png,image/jpeg,image/webp">
+      <span class="ncg__upload-button">Choose logo <span aria-hidden="true">＋</span></span>
+      <span class="ncg__file-name" data-file-name>No file selected</span>
+      <small>PNG, JPG or WebP · Maximum 15MB</small>
+    </label>
+
+    <div class="ncg__detected" data-detected hidden>
+      <strong>Colours detected from your logo</strong>
+      <div class="ncg__swatches">
+        <label>Primary Colour <input data-colour-a type="color" value="#0B2D6B"></label>
+        <label>Secondary Colour <input data-colour-b type="color" value="#D6A514"></label>
+      </div>
+      <button type="button" data-swap-colours class="ncg__swap">⇄ Swap colours</button>
+      <small>Enter a HEX code or use the colour picker. Swapping colours rebuilds the three concept presets.</small>
+      <p data-hex-error role="alert" style="color:#ffb4ab"></p>
+    </div>
+
+    <div class="ncg__concepts" data-concepts hidden></div>
+
+    <button data-generate class="ncg__button" type="button" disabled>Create My 9 Concepts →</button>
+    <p class="ncg__status" data-status aria-live="polite"></p>
+    <div class="ncg__loading" data-loading hidden aria-hidden="true">
+      <div class="ncg__loading-top">
+        <span data-loading-title>CREATING YOUR COLLECTION</span>
+        <strong data-loading-count>0%</strong>
+      </div>
+      <div class="ncg__energy"><span data-loading-bar></span></div>
+      <div class="ncg__loading-stages" aria-hidden="true">
+        <span data-stage="beanies">Beanies</span>
+        <span data-stage="caps">Caps</span>
+        <span data-stage="buckets">Bucket hats</span>
+      </div>
+    </div>
+    <div class="ncg__results" data-results></div>
+  </div>
+</section>
+<style>
+.ncg__share-all-wrap {
+  width: 100%;
+  max-width: 720px;
+  margin: 26px auto 16px;
+  padding: 20px;
+  box-sizing: border-box;
+  display: grid;
+  gap: 10px;
+  text-align: left;
+  background: #191f17;
+  color: #ffffff;
+  border-radius: 22px;
+  border: 1px solid #30382d;
+  box-shadow: 0 18px 45px rgba(0,0,0,.24);
+}
+.ncg__action-head {
+  margin: 0 0 3px;
+}
+.ncg__action-head strong {
+  display: block;
+  font-size: 20px;
+  line-height: 1.15;
+}
+.ncg__action-head span {
+  display: block;
+  margin-top: 5px;
+  color: #aaaaaa;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.ncg__contact-kieran,
+.ncg__start-order,
+.ncg__share-all {
+  width: 100%;
+  min-height: 52px;
+  margin: 0;
+  padding: 13px 18px;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 14px;
+  background: #111111;
+  color: #ffffff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.2;
+  cursor: pointer;
+  box-shadow: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.ncg__start-order {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #b8ff31;
+  color: #111111;
+  text-decoration: none;
+  order: 2;
+}
+
+.ncg__contact-kieran:hover,
+.ncg__share-all:hover {
+  transform: translateY(-1px);
+  box-shadow: none;
+}
+.ncg__contact-kieran {
+  background: #ffffff;
+  color: #111111;
+  order: 3;
+}
+
+.ncg__contact-kieran:hover {
+  background: #eeeeee;
+  box-shadow: none;
+}
+
+.ncg__contact-kieran:active,
+.ncg__share-all:active {
+  transform: scale(.99);
+  box-shadow: none;
+}
+
+.ncg__contact-kieran:disabled,
+.ncg__share-all:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+.ncg__share-all {
+  margin: 0;
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid #555555;
+  box-shadow: none;
+  order: 4;
+}
+.ncg__share-all-note {
+  margin: 2px 4px 0;
+  color: #999999;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+  order: 5;
+}
+
+@media (max-width: 749px) {
+  .ncg__share-all-wrap {
+    margin-top: 18px;
+    padding: 16px;
+  }
+}
+
+</style>
+<style>
+  #noggin-cap-generator-internal { --ink:#f7f7f2; --muted:#abb0a8; --line:#30362e; --accent:#b8ff31; background:radial-gradient(circle at 82% 8%,rgba(184,255,49,.11),transparent 27%),linear-gradient(180deg,#10150f 0%,#0b0f0b 100%); color:var(--ink); padding:52px 18px 22px; }
+  #noggin-cap-generator-internal .ncg__inner { max-width:1180px; margin:auto; }
+  #noggin-cap-generator-internal .ncg__eyebrow { color:var(--accent); font-size:12px; font-weight:800; letter-spacing:.16em; margin:0 0 8px; }
+  #noggin-cap-generator-internal h2 { font-size:clamp(32px,5vw,64px); line-height:.98; margin:0 0 14px; }
+  #noggin-cap-generator-internal .ncg__intro { color:var(--muted); max-width:700px; font-size:17px; }
+  #noggin-cap-generator-internal .ncg__upload { position:relative; display:grid; grid-template-columns:1fr auto; align-items:center; gap:8px 16px; background:#191f17; color:#fff; border:2px solid var(--accent); border-radius:14px; padding:15px 16px; margin:24px 0 10px; font-weight:800; cursor:pointer; box-shadow:0 0 0 1px rgba(184,255,49,.08); transition:transform .15s ease,background .15s ease,box-shadow .15s ease; }
+  #noggin-cap-generator-internal .ncg__upload:hover { transform:translateY(-1px); background:#1d241b; box-shadow:0 8px 24px rgba(184,255,49,.12); }
+  #noggin-cap-generator-internal .ncg__upload-title { font-size:17px; line-height:1.2; }
+  #noggin-cap-generator-internal .ncg__upload input { position:absolute; width:1px; height:1px; overflow:hidden; opacity:0; pointer-events:none; }
+  #noggin-cap-generator-internal .ncg__upload-button { display:inline-flex; align-items:center; justify-content:center; min-height:42px; box-sizing:border-box; grid-column:2; grid-row:1 / span 3; padding:9px 15px; border:1px solid #111; border-radius:999px; background:#111; color:#fff; font-size:14px; font-weight:900; text-align:center; white-space:nowrap; transition:background .15s ease,transform .15s ease; }
+  #noggin-cap-generator-internal .ncg__upload:hover .ncg__upload-button { background:#272727; }
+  #noggin-cap-generator-internal .ncg__upload:active .ncg__upload-button { transform:scale(.99); }
+  #noggin-cap-generator-internal .ncg__upload:focus-within { outline:3px solid var(--accent); outline-offset:3px; }
+  #noggin-cap-generator-internal .ncg__file-name { color:#a4aaa0; font-size:12px; font-weight:700; text-align:left; overflow-wrap:anywhere; }
+  #noggin-cap-generator-internal .ncg__upload.has-file .ncg__file-name { color:var(--accent); }
+  #noggin-cap-generator-internal .ncg__upload small { color:#a4aaa0; text-align:left; font-size:11px; }
+  #noggin-cap-generator-internal small { color:var(--muted); font-weight:400; }
+  #noggin-cap-generator-internal .ncg__detected { background:#1a2018; color:#fff; border:1px solid #333b30; border-radius:16px; padding:20px; margin-bottom:18px; }
+  #noggin-cap-generator-internal .ncg__detected small { color:#bbb; display:block; margin-top:12px; }
+  #noggin-cap-generator-internal .ncg__swatches { display:flex; gap:18px; flex-wrap:wrap; margin-top:12px; }
+  #noggin-cap-generator-internal .ncg__swatches label { display:flex; align-items:center; gap:8px; }
+  #noggin-cap-generator-internal input[type=color] { width:42px; height:42px; border:0; padding:0; background:transparent; cursor:pointer; }
+  #noggin-cap-generator-internal .ncg__concepts { display:none !important; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+  #noggin-cap-generator-internal .ncg__card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:18px; }
+  #noggin-cap-generator-internal .ncg__card h3 { margin:0 0 14px; font-size:22px; }
+  #noggin-cap-generator-internal .ncg__controls { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  #noggin-cap-generator-internal .ncg__controls label { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:13px; font-weight:700; border-bottom:1px solid #eee; padding:7px 0; }
+  #noggin-cap-generator-internal .ncg__button { width:100%; margin-top:20px; border:0; border-radius:14px; padding:17px 24px; background:var(--accent); color:#111; font:inherit; font-weight:900; font-size:17px; cursor:pointer; box-shadow:0 8px 26px rgba(184,255,49,.14); }
+  #noggin-cap-generator-internal .ncg__button:disabled { opacity:.45; cursor:not-allowed; }
+  #noggin-cap-generator-internal .ncg__button-preview { margin:0 0 18px; background:#20251e; color:#7f857c; border:1px solid #363d34; box-shadow:none; }
+  #noggin-cap-generator-internal .ncg__lead-gate { margin:20px 0 0; padding:22px; border:1px solid #333b30; border-radius:18px; background:#191f17; box-shadow:0 18px 45px rgba(0,0,0,.2); }
+  #noggin-cap-generator-internal .ncg__lead-copy h3 { margin:0 0 7px; color:#fff; font-size:24px; line-height:1.1; }
+  #noggin-cap-generator-internal .ncg__lead-copy p:not(.ncg__eyebrow) { margin:0; color:var(--muted); font-size:14px; }
+  #noggin-cap-generator-internal .ncg__lead-fields { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px; }
+  #noggin-cap-generator-internal .ncg__lead-fields label { display:grid; gap:7px; color:#fff; font-size:13px; font-weight:800; }
+  #noggin-cap-generator-internal .ncg__lead-fields label span small { color:#999; }
+  #noggin-cap-generator-internal .ncg__lead-fields input { width:100%; min-height:50px; box-sizing:border-box; border:1px solid #454c42; border-radius:12px; padding:12px 14px; background:#fff; color:#111; font:inherit; font-size:16px; }
+  #noggin-cap-generator-internal .ncg__lead-fields input:focus { outline:2px solid var(--accent); outline-offset:2px; border-color:var(--accent); }
+  #noggin-cap-generator-internal .ncg__lead-wide { grid-column:1 / -1; }
+  #noggin-cap-generator-internal .ncg__privacy-note { display:block; margin:10px 2px 0; text-align:center; font-size:11px; }
+  #noggin-cap-generator-internal .ncg__status { text-align:center; font-weight:700; }
+  #noggin-cap-generator-internal .ncg__loading { max-width:760px; margin:24px auto; padding:24px; background:#111; color:#fff; border-radius:20px; box-shadow:0 16px 50px rgba(0,0,0,.14); }
+  #noggin-cap-generator-internal .ncg__loading-top { display:flex; justify-content:space-between; gap:16px; font-size:13px; font-weight:900; letter-spacing:.08em; }
+  #noggin-cap-generator-internal .ncg__energy { height:15px; margin:17px 0 15px; overflow:hidden; border-radius:999px; background:#333; }
+  #noggin-cap-generator-internal .ncg__energy span { display:block; width:0; height:100%; border-radius:inherit; background:linear-gradient(90deg,#86d80f,#b8ff31); box-shadow:0 0 22px rgba(184,255,49,.65); transition:width .55s cubic-bezier(.2,.8,.2,1); }
+  #noggin-cap-generator-internal .ncg__loading-stages { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; color:#777; font-size:12px; font-weight:800; }
+  #noggin-cap-generator-internal .ncg__loading-stages span { position:relative; padding-left:16px; }
+  #noggin-cap-generator-internal .ncg__loading-stages span:before { content:''; position:absolute; left:0; top:.35em; width:8px; height:8px; border-radius:50%; background:#444; }
+  #noggin-cap-generator-internal .ncg__loading-stages span.is-live { color:#fff; }
+  #noggin-cap-generator-internal .ncg__loading-stages span.is-live:before { background:var(--accent); box-shadow:0 0 12px var(--accent); }
+  #noggin-cap-generator-internal .ncg__collection-head { display:flex; align-items:end; justify-content:space-between; gap:18px; margin:34px 0 16px; }
+  #noggin-cap-generator-internal .ncg__collection-head h3 { margin:0 0 5px; font-size:clamp(25px,4vw,38px); line-height:1; }
+  #noggin-cap-generator-internal .ncg__collection-head p { margin:0; color:var(--muted); font-size:14px; }
+  #noggin-cap-generator-internal .ncg__tabs { display:flex; gap:8px; overflow-x:auto; padding:2px 2px 10px; scrollbar-width:none; }
+  #noggin-cap-generator-internal .ncg__tabs::-webkit-scrollbar { display:none; }
+  #noggin-cap-generator-internal .ncg__tab { flex:0 0 auto; min-height:42px; padding:10px 18px; border:1px solid #394036; border-radius:999px; background:#1b2119; color:#fff; font:inherit; font-size:13px; font-weight:850; cursor:pointer; }
+  #noggin-cap-generator-internal .ncg__tab.is-active { border-color:var(--accent); background:var(--accent); color:#111; }
+  #noggin-cap-generator-internal .ncg__results { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-top:6px; }
+  #noggin-cap-generator-internal .ncg__result { background:#fff; color:#111; border-radius:16px; overflow:hidden; border:1px solid var(--line); }
+  #noggin-cap-generator-internal .ncg__result img { display:block; width:100%; height:clamp(220px,25vw,330px); object-fit:contain; background:#fff; }
+  #noggin-cap-generator-internal .ncg__result strong { display:block; padding:12px 16px; }
+#noggin-cap-generator-internal .ncg__save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(50% - 20px);
+  min-height: 36px;
+  margin: 0 8px 12px;
+  padding: 8px 10px;
+  box-sizing: border-box;
+  border: 1px solid #dedede;
+  border-radius: 999px;
+  background: #fff;
+  color: #111;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+
+#noggin-cap-generator-internal .ncg__save:hover {
+  background: #f4f4f1;
+  border-color: #bdbdbd;
+  color: #111;
+}
+
+#noggin-cap-generator-internal .ncg__choose {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(100% - 32px);
+  min-height: 48px;
+  margin: 0 16px 16px;
+  padding: 12px 18px;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 999px;
+  background: #111;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background .15s ease, transform .15s ease;
+}
+
+#noggin-cap-generator-internal .ncg__choose:hover {
+  background: #2a2a2a;
+  transform: translateY(-1px);
+}
+#noggin-cap-generator-internal .ncg__result.is-selected {
+  border-color: #111;
+  box-shadow: 0 0 0 2px #b8ff31;
+}
+
+#noggin-cap-generator-internal .ncg__result.is-selected .ncg__choose {
+  background: #b8ff31;
+  color: #111;
+}
+
+#noggin-cap-generator-internal .ncg__start-order.is-disabled {
+  opacity: .45;
+  pointer-events: none;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+  #noggin-cap-generator-internal .ncg__mobile-nav { display:none; }
+  @media(max-width:800px){
+    #noggin-cap-generator-internal { padding:30px 14px 16px; }
+    #noggin-cap-generator-internal h2 { max-width:340px; font-size:34px; line-height:.96; margin-bottom:10px; }
+    #noggin-cap-generator-internal .ncg__intro { max-width:360px; font-size:14px; line-height:1.5; }
+    #noggin-cap-generator-internal .ncg__upload { margin-top:17px; padding:14px; border-radius:13px; gap:6px 10px; }
+    #noggin-cap-generator-internal .ncg__upload-title { font-size:15px; }
+    #noggin-cap-generator-internal .ncg__upload-button { min-height:40px; padding:8px 13px; font-size:13px; }
+    #noggin-cap-generator-internal .ncg__lead-gate { padding:17px 15px; border-radius:16px; }
+    #noggin-cap-generator-internal .ncg__lead-copy h3 { font-size:21px; }
+    #noggin-cap-generator-internal .ncg__lead-fields { grid-template-columns:1fr; gap:11px; margin-top:15px; }
+    #noggin-cap-generator-internal .ncg__lead-wide { grid-column:auto; }
+    #noggin-cap-generator-internal .ncg__button { margin-top:15px; }
+    #noggin-cap-generator-internal .ncg__loading { margin:18px 0; padding:20px 16px; border-radius:16px; }
+    #noggin-cap-generator-internal .ncg__loading-stages { font-size:10px; }
+    #noggin-cap-generator-internal .ncg__collection-head { align-items:start; margin-top:26px; }
+    #noggin-cap-generator-internal .ncg__collection-head p { max-width:240px; }
+    #noggin-cap-generator-internal .ncg__concepts { grid-template-columns:1fr; }
+    #noggin-cap-generator-internal .ncg__results { display:flex; gap:12px; overflow-x:auto; margin:2px -14px 0; padding:3px 14px 15px; scroll-snap-type:x mandatory; scroll-padding:14px; scrollbar-width:none; }
+    #noggin-cap-generator-internal .ncg__results::-webkit-scrollbar { display:none; }
+    #noggin-cap-generator-internal .ncg__result { flex:0 0 min(82vw,340px); scroll-snap-align:start; border-radius:18px; box-shadow:0 7px 22px rgba(0,0,0,.07); }
+    #noggin-cap-generator-internal .ncg__result[hidden] { display:none; }
+    #noggin-cap-generator-internal .ncg__result img { height:min(66vw,270px); }
+    #noggin-cap-generator-internal .ncg__result strong { padding:11px 14px; font-size:15px; }
+    #noggin-cap-generator-internal .ncg__save { min-height:34px; margin-bottom:10px; }
+    #noggin-cap-generator-internal .ncg__choose { min-height:44px; margin:0 12px 12px; width:calc(100% - 24px); }
+    #noggin-cap-generator-internal .ncg__mobile-nav { display:flex; align-items:center; justify-content:space-between; margin:0 0 12px; }
+    #noggin-cap-generator-internal .ncg__mobile-nav button { width:44px; height:44px; border:1px solid #394036; border-radius:50%; background:#1b2119; color:#fff; font:inherit; font-size:20px; cursor:pointer; }
+    #noggin-cap-generator-internal .ncg__mobile-nav span { font-size:12px; font-weight:850; color:var(--muted); }
+    #noggin-cap-generator-internal .ncg__share-all-wrap { margin-top:16px; }
+  }
+</style>
+
+<script>
+(() => {
+  const root = document.getElementById('noggin-cap-generator-internal');
+  if (!root || root.dataset.ready) return;
+  root.dataset.ready = 'true';
+
+  const API = 'https://noggin-generator.vercel.app/api/generate';
+  const fields = ['frontColor','sideColor','peakColor','eyeletColor','topButtonColor','nogginLogoColor'];
+  const labels = {frontColor:'Front',sideColor:'Side',peakColor:'Peak',eyeletColor:'Eyelets',topButtonColor:'Top button',nogginLogoColor:'Noggin logo'};
+  const logoInput = root.querySelector('[data-logo]');
+  const fileName = root.querySelector('[data-file-name]');
+  const colourAInput = root.querySelector('[data-colour-a]');
+  const colourBInput = root.querySelector('[data-colour-b]');
+  const detected = root.querySelector('[data-detected]');
+  const concepts = root.querySelector('[data-concepts]');
+  const generate = root.querySelector('[data-generate]');
+  const status = root.querySelector('[data-status]');
+  const results = root.querySelector('[data-results]');
+  const loading = root.querySelector('[data-loading]');
+  const loadingBar = root.querySelector('[data-loading-bar]');
+  const loadingCount = root.querySelector('[data-loading-count]');
+  const loadingTitle = root.querySelector('[data-loading-title]');
+  let logoDataUrl = '';
+  let logoMimeType = 'image/png';
+  let loadingTimer = null;
+
+  function setLoadingProgress(value){
+    const progress = Math.max(0, Math.min(100, Math.round(value)));
+    loadingBar.style.width = `${progress}%`;
+    loadingCount.textContent = `${progress}%`;
+    const stages = [...loading.querySelectorAll('[data-stage]')];
+    stages[0].classList.toggle('is-live', progress >= 12);
+    stages[1].classList.toggle('is-live', progress >= 42);
+    stages[2].classList.toggle('is-live', progress >= 72);
+    loadingTitle.textContent = progress < 35
+      ? 'BUILDING YOUR BEANIES'
+      : progress < 68
+        ? 'CREATING YOUR CAPS'
+        : progress < 100
+          ? 'FINISHING YOUR BUCKET HATS'
+          : 'YOUR COLLECTION IS READY';
+  }
+
+  function startLoadingExperience(){
+    clearInterval(loadingTimer);
+    loading.hidden = false;
+    loading.setAttribute('aria-hidden','false');
+    setLoadingProgress(6);
+    let progress = 6;
+    loadingTimer = setInterval(() => {
+      progress = Math.min(92, progress + Math.max(2, Math.round((94 - progress) / 8)));
+      setLoadingProgress(progress);
+    }, 650);
+  }
+
+  function finishLoadingExperience(){
+    clearInterval(loadingTimer);
+    setLoadingProgress(100);
+    setTimeout(() => {
+      loading.hidden = true;
+      loading.setAttribute('aria-hidden','true');
+    }, 850);
+  }
+
+  function setupCollectionView(){
+    root.querySelector('[data-collection-ui]')?.remove();
+    root.querySelector('[data-mobile-nav]')?.remove();
+
+    results.insertAdjacentHTML('beforebegin', `
+      <div data-collection-ui>
+        <div class="ncg__collection-head">
+          <div>
+            <p class="ncg__eyebrow">YOUR CUSTOM COLLECTION</p>
+            <h3>Choose your favourites</h3>
+          </div>
+          <p>Select up to 2 designs to continue</p>
+        </div>
+        <div class="ncg__tabs" role="tablist" aria-label="Filter concepts">
+          <button class="ncg__tab is-active" type="button" data-filter="all">All 9</button>
+          <button class="ncg__tab" type="button" data-filter="beanie">Beanies</button>
+          <button class="ncg__tab" type="button" data-filter="cap">Caps</button>
+          <button class="ncg__tab" type="button" data-filter="bucketHat">Bucket hats</button>
+        </div>
+      </div>
+    `);
+
+    results.insertAdjacentHTML('afterend', `
+      <div class="ncg__mobile-nav" data-mobile-nav>
+        <button type="button" data-concept-prev aria-label="Previous concept">←</button>
+        <span data-concept-count>Concept 1 of 9</span>
+        <button type="button" data-concept-next aria-label="Next concept">→</button>
+      </div>
+    `);
+
+    const tabs = [...root.querySelectorAll('[data-filter]')];
+    const counter = root.querySelector('[data-concept-count]');
+    let activeFilter = 'all';
+
+    function visibleCards(){
+      return [...results.querySelectorAll('.ncg__result:not([hidden])')];
+    }
+
+    function currentIndex(){
+      const cards = visibleCards();
+      if (!cards.length) return 0;
+      const left = results.scrollLeft;
+      let best = 0;
+      let distance = Infinity;
+      cards.forEach((card,index) => {
+        const gap = Math.abs(card.offsetLeft - results.offsetLeft - left);
+        if (gap < distance) { distance = gap; best = index; }
+      });
+      return best;
+    }
+
+    function updateCounter(){
+      const cards = visibleCards();
+      const index = Math.min(currentIndex(), Math.max(0,cards.length - 1));
+      counter.textContent = `Concept ${index + 1} of ${cards.length}`;
+    }
+
+    function move(direction){
+      const cards = visibleCards();
+      if (!cards.length) return;
+      const next = Math.max(0, Math.min(cards.length - 1, currentIndex() + direction));
+      cards[next].scrollIntoView({ behavior:'smooth', block:'nearest', inline:'start' });
+      setTimeout(updateCounter, 350);
+    }
+
+    tabs.forEach(tab => tab.addEventListener('click', () => {
+      activeFilter = tab.dataset.filter;
+      tabs.forEach(item => item.classList.toggle('is-active', item === tab));
+      results.querySelectorAll('.ncg__result').forEach(card => {
+        card.hidden = activeFilter !== 'all' && card.dataset.productType !== activeFilter;
+      });
+      results.scrollTo({ left:0, behavior:'smooth' });
+      setTimeout(updateCounter, 100);
+    }));
+
+    root.querySelector('[data-concept-prev]').addEventListener('click', () => move(-1));
+    root.querySelector('[data-concept-next]').addEventListener('click', () => move(1));
+    results.addEventListener('scroll', () => requestAnimationFrame(updateCounter), { passive:true });
+    updateCounter();
+  }
+
+  function presets(a,b){
+    return [
+      {frontColor:a,sideColor:a,peakColor:a,eyeletColor:b,topButtonColor:b,nogginLogoColor:b},
+      {frontColor:a,sideColor:a,peakColor:b,eyeletColor:b,topButtonColor:b,nogginLogoColor:b},
+      {frontColor:b,sideColor:b,peakColor:b,eyeletColor:a,topButtonColor:a,nogginLogoColor:a}
+    ];
+  }
+
+  function renderControls(){
+    const data = presets(colourAInput.value, colourBInput.value);
+    concepts.innerHTML = data.map((design,index) => `
+      <article class="ncg__card" data-design="${index}">
+        <h3>Concept ${index + 1}</h3>
+        <div class="ncg__controls">
+          ${fields.map(field => `<label>${labels[field]}<input type="color" data-field="${field}" value="${design[field]}"></label>`).join('')}
+        </div>
+      </article>`).join('');
+    attachHexInputs(concepts);
+    concepts.hidden = false;
+  }
+
+  function readDesigns(){
+    return [...concepts.querySelectorAll('[data-design]')].map(card => {
+      const design = {};
+      fields.forEach(field => design[field] = card.querySelector(`[data-field="${field}"]`).value.toUpperCase());
+      return design;
+    });
+  }
+
+  function rgbToHex(r,g,b){ return '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join('').toUpperCase(); }
+  function distance(a,b){ return Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]); }
+
+  async function dominantColours(dataUrl){
+    const img = new Image();
+    img.src = dataUrl;
+    await img.decode();
+    const max = 260;
+    const scale = Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1,Math.round(img.naturalWidth*scale));
+    canvas.height = Math.max(1,Math.round(img.naturalHeight*scale));
+    const ctx = canvas.getContext('2d',{willReadFrequently:true});
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    const pixels = ctx.getImageData(0,0,canvas.width,canvas.height).data;
+    const bins = new Map();
+    for(let i=0;i<pixels.length;i+=4){
+      const r=pixels[i], g=pixels[i+1], b=pixels[i+2], a=pixels[i+3];
+      if(a<96 || (r>235 && g>235 && b>235)) continue;
+      const qr=Math.min(255,Math.round(r/32)*32), qg=Math.min(255,Math.round(g/32)*32), qb=Math.min(255,Math.round(b/32)*32);
+      const key=`${qr},${qg},${qb}`;
+      bins.set(key,(bins.get(key)||0)+1);
+    }
+    const ranked=[...bins.entries()].sort((x,y)=>y[1]-x[1]).map(([key])=>key.split(',').map(Number));
+    const first=ranked[0] || [11,45,107];
+    const second=ranked.find(c=>distance(c,first)>85) || ranked.find(c=>distance(c,first)>45) || [214,165,20];
+    return [rgbToHex(...first),rgbToHex(...second)];
+  }
+
+  logoInput.addEventListener('change', async () => {
+    const file = logoInput.files && logoInput.files[0];
+    if(!file) return;
+    if(file.size > 15*1024*1024){ status.textContent='Please choose a logo smaller than 15MB.'; return; }
+    fileName.textContent=file.name;
+    logoInput.closest('.ncg__upload').classList.add('has-file');
+    status.textContent='Reading your logo and finding its main colours…';
+    logoMimeType=file.type || 'image/png';
+    logoDataUrl=await new Promise((resolve,reject)=>{ const reader=new FileReader(); reader.onload=()=>resolve(reader.result); reader.onerror=reject; reader.readAsDataURL(file); });
+    try {
+      const [a,b]=await dominantColours(logoDataUrl);
+      colourAInput.value=a; colourBInput.value=b;
+      colourAInput._hexInput.value=a;colourBInput._hexInput.value=b;
+      detected.hidden=false;
+      renderControls();
+      generate.disabled=false;
+      status.textContent='';
+    } catch(error){ status.textContent='We could not read that image. Please try a PNG, JPG or WebP logo.'; }
+  });
+
+  function normaliseHex(value){
+    let hex = String(value).trim().replace(/^#/, '');
+    if (/^[0-9a-f]{3}$/i.test(hex)) hex = hex.split('').map(c=>c+c).join('');
+    return /^[0-9a-f]{6}$/i.test(hex) ? '#'+hex.toUpperCase() : null;
+  }
+  function attachHexInputs(container){
+    container.querySelectorAll('input[type="color"]').forEach(picker=>{
+      if(picker._hexInput) return;
+      const input=document.createElement('input');
+      input.type='text'; input.className='ncg__hex';input.value=picker.value.toUpperCase();
+      input.maxLength=7;input.placeholder='#FFFFFF';input.spellcheck=false;
+      input.setAttribute('aria-label',picker.parentElement.textContent.trim()+' HEX code');
+      input.setAttribute('aria-invalid','false');
+      picker.after(input);picker._hexInput=input;
+      picker.addEventListener('input',()=>{input.value=picker.value.toUpperCase();input.setAttribute('aria-invalid','false');root.querySelector('[data-hex-error]').textContent='';});
+      input.addEventListener('change',()=>{
+        const hex=normaliseHex(input.value);
+        input.setAttribute('aria-invalid',String(!hex));
+        root.querySelector('[data-hex-error]').textContent=hex?'':'Use a valid HEX code, such as #500778 or #FFF.';
+        if(hex){picker.value=hex;picker.dispatchEvent(new Event('input',{bubbles:true}));}
+      });
+    });
+  }
+  function validateHexInputs(){
+    const invalid=[...root.querySelectorAll('.ncg__hex')].find(input=>!normaliseHex(input.value));
+    if(invalid){invalid.setAttribute('aria-invalid','true');invalid.focus();root.querySelector('[data-hex-error]').textContent='Correct the highlighted HEX code before generating.';return false;}
+    return true;
+  }
+  attachHexInputs(detected);
+  root.querySelector('[data-swap-colours]').addEventListener('click',()=>{
+    if(!validateHexInputs()) return;
+    const a=colourAInput.value;
+    colourAInput.value=colourBInput.value;colourBInput.value=a;
+    colourAInput._hexInput.value=colourAInput.value.toUpperCase();
+    colourBInput._hexInput.value=colourBInput.value.toUpperCase();
+    renderControls();
+  });
+  colourAInput.addEventListener('input',renderControls);
+  colourBInput.addEventListener('input',renderControls);
+
+  generate.addEventListener('click', async () => {
+    if(!logoDataUrl || !validateHexInputs()) return;
+    generate.disabled=true;
+    results.innerHTML='';
+    root.querySelector('[data-collection-ui]')?.remove();
+    root.querySelector('[data-mobile-nav]')?.remove();
+    root.querySelector('.ncg__share-all-wrap')?.remove();
+    status.textContent='';
+    startLoadingExperience();
+    try {
+      const response=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        logoBase64:logoDataUrl,
+        logoMimeType,
+        sessionId:`shopify-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        tier:'1',
+        capDesigns:readDesigns()
+      })});
+      const data=await response.json();
+      if(!response.ok) throw new Error(data.message || 'The generator could not complete this request.');
+           if(
+        !Array.isArray(data.images) ||
+        !Array.isArray(data.productTypes) ||
+        data.images.length < 1 ||
+        data.images.length !== data.productTypes.length
+      ) throw new Error('The generator did not return the expected headwear concepts.');
+
+      results.innerHTML = data.images.map((url, index) => {
+        const productType = data.productTypes[index] || 'headwear';
+
+        const productNames = {
+          beanie: 'Beanie',
+          cap: 'Cap',
+          bucketHat: 'Bucket Hat'
+        };
+
+        const productName = productNames[productType] || 'Headwear';
+
+        const conceptNumber = data.productTypes
+          .slice(0, index + 1)
+          .filter(type => type === productType)
+          .length;
+
+        return `
+        <article
+  class="ncg__result"
+  data-mockup-url="${url}"
+  data-design-number="${index + 1}"
+  data-design-label="${productName} Concept ${conceptNumber}"
+  data-product-type="${productType}"
+>
+            <img
+              src="${url}"
+              alt="Your custom ${productName.toLowerCase()} concept ${conceptNumber}"
+            >
+            <strong>${productName} Concept ${conceptNumber}</strong>
+          <a
+  class="ncg__save"
+  href="${url}"
+  target="_blank"
+  rel="noopener"
+  download
+>
+  Save image
+</a>
+<button
+  class="ncg__save ncg__share"
+  type="button"
+  data-share-url="${url}"
+  data-share-title="${productName} Concept ${conceptNumber}"
+>
+  Share concept
+</button>
+<button
+  class="ncg__choose"
+  type="button"
+  data-choose-design
+>
+  Choose This Design
+</button>
+            </article>
+        `;
+      }).join('');
+setupCollectionView();
+results.querySelectorAll('[data-choose-design]').forEach(button => {
+  button.addEventListener('click', () => {
+    const card = button.closest('.ncg__result');
+    const alreadySelected = card.classList.contains('is-selected');
+    const selectedBefore = results.querySelectorAll('.ncg__result.is-selected');
+
+    if (!alreadySelected && selectedBefore.length >= 2) {
+      status.textContent = 'You can select up to 2 designs.';
+      return;
+    }
+
+    card.classList.toggle('is-selected', !alreadySelected);
+    button.textContent = alreadySelected
+      ? 'Select This Design'
+      : '✓ Selected to Order';
+
+    status.textContent = 'Your concepts are ready.';
+
+    const selectedCards = [
+      ...results.querySelectorAll('.ncg__result.is-selected')
+    ];
+
+    const orderButton = root.querySelector('.ncg__start-order');
+
+    if (!orderButton) return;
+
+    if (selectedCards.length === 0) {
+      orderButton.removeAttribute('href');
+      orderButton.classList.add('is-disabled');
+      orderButton.setAttribute('aria-disabled', 'true');
+      orderButton.textContent = 'Select a Design to Start';
+      return;
+    }
+
+    const parameters = new URLSearchParams({
+      mockup_url: selectedCards
+        .map(selectedCard => selectedCard.dataset.mockupUrl)
+        .join(' | '),
+      design_number: selectedCards
+        .map(selectedCard => selectedCard.dataset.designNumber)
+        .join(', '),
+      primary_colour: colourAInput.value,
+      secondary_colour: colourBInput.value,
+design_count: selectedCards.length,
+design_1_label: selectedCards[0]?.dataset.designLabel || '',
+design_1_mockup_url: selectedCards[0]?.dataset.mockupUrl || '',
+      design_2_label: selectedCards[1]?.dataset.designLabel || '',
+design_2_mockup_url: selectedCards[1]?.dataset.mockupUrl || ''
+    });
+
+    orderButton.href =
+      `https://nogginsport.typeform.com/to/qKsJgaK0#${parameters.toString()}`;
+
+    orderButton.classList.remove('is-disabled');
+    orderButton.removeAttribute('aria-disabled');
+    orderButton.textContent =
+      selectedCards.length === 1
+        ? 'Start My Order — 1 Design →'
+        : 'Start My Order — 2 Designs →';
+  });
+});
+root.querySelector('.ncg__share-all-wrap')?.remove();
+
+results.insertAdjacentHTML(
+  'afterend',
+  `
+    <div class="ncg__share-all-wrap">
+  <div class="ncg__action-head">
+    <strong>Ready to bring it to life?</strong>
+    <span>Choose up to 2 concepts, or message Kieran for help.</span>
+  </div>
+  <a
+  class="ncg__start-order is-disabled"
+  aria-disabled="true"
+  target="_blank"
+  rel="noopener"
+>
+  Select a Design to Start
+</a>
+  <button class="ncg__contact-kieran" type="button">
+    Ask Kieran on WhatsApp
+  </button>
+  <button class="ncg__share-all" type="button">
+    Share All 9 Concepts
+  </button>
+  <p class="ncg__share-all-note">
+    Free shipping · 4–5 week turnaround
+  </p>
+</div>
+  `
+);
+const mobileNav = root.querySelector('[data-mobile-nav]');
+const actionWrap = root.querySelector('.ncg__share-all-wrap');
+if (mobileNav && actionWrap) {
+  actionWrap.parentNode.insertBefore(mobileNav, actionWrap);
+}
+      finishLoadingExperience();
+      status.textContent='Your concepts are ready.';
+      results.scrollIntoView({behavior:'smooth',block:'start'});
+    } catch(error){
+      clearInterval(loadingTimer);
+      loading.hidden=true;
+      loading.setAttribute('aria-hidden','true');
+      status.textContent=error.message;
+    }
+    finally { generate.disabled=false; }
+  });
+  async function loadConceptImage(url) {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error('A concept image could not be loaded.');
+  }
+
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('A concept image could not be displayed.'));
+    };
+
+    image.src = objectUrl;
+  });
+}
+
+function drawContainedImage(context, image, x, y, width, height) {
+  const scale = Math.min(width / image.width, height / image.height);
+  const drawWidth = image.width * scale;
+  const drawHeight = image.height * scale;
+
+  context.drawImage(
+    image,
+    x + ((width - drawWidth) / 2),
+    y + ((height - drawHeight) / 2),
+    drawWidth,
+    drawHeight
+  );
+}
+
+function readableTextColour(hex) {
+  const cleanHex = String(hex || '#111111').replace('#', '');
+  const fullHex =
+    cleanHex.length === 3
+      ? cleanHex.split('').map(character => character + character).join('')
+      : cleanHex.padEnd(6, '0').slice(0, 6);
+
+  const red = parseInt(fullHex.slice(0, 2), 16);
+  const green = parseInt(fullHex.slice(2, 4), 16);
+  const blue = parseInt(fullHex.slice(4, 6), 16);
+  const brightness = ((red * 299) + (green * 587) + (blue * 114)) / 1000;
+
+  return brightness > 155 ? '#111111' : '#ffffff';
+}
+
+async function createBrandedConceptSheet(conceptImages) {
+  const colourA =
+    root.querySelector('[data-colour-a]')?.value || '#111111';
+
+  const colourB =
+    root.querySelector('[data-colour-b]')?.value || '#b8ff31';
+const customerLogo = logoDataUrl
+  ? await loadConceptImage(logoDataUrl)
+  : null;
+  const canvas = document.createElement('canvas');
+  canvas.width = 1500;
+  canvas.height = 2150;
+
+  const context = canvas.getContext('2d');
+  const pagePadding = 48;
+  const gap = 22;
+  const headerHeight = 230;
+  const footerHeight = 100;
+  const cardWidth = (canvas.width - (pagePadding * 2) - (gap * 2)) / 3;
+  const cardHeight = 480;
+
+  context.fillStyle = '#f4f4f1';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  context.fillStyle = colourA;
+  context.fillRect(0, 0, canvas.width, headerHeight);
+
+  context.fillStyle = colourB;
+  context.fillRect(0, headerHeight - 18, canvas.width, 18);
+
+  context.fillStyle = readableTextColour(colourA);
+  context.font = '700 64px Arial, sans-serif';
+  context.fillText('YOUR NOGGIN CONCEPTS', pagePadding, 96);
+
+  context.font = '400 30px Arial, sans-serif';
+  context.fillText(
+    'Nine custom headwear ideas created from your colours and logo',
+    pagePadding,
+    152
+  );
+if (customerLogo) {
+  context.fillStyle = '#ffffff';
+  context.fillRect(1210, 38, 242, 150);
+
+  drawContainedImage(
+    context,
+    customerLogo,
+    1226,
+    54,
+    210,
+    118
+  );
+}
+  const loadedConcepts = await Promise.all(
+    conceptImages.map(image => loadConceptImage(image.src))
+  );
+
+  loadedConcepts.forEach((image, index) => {
+    const column = index % 3;
+    const row = Math.floor(index / 3);
+    const x = pagePadding + (column * (cardWidth + gap));
+    const y = headerHeight + 38 + (row * (cardHeight + gap));
+
+    context.fillStyle = '#ffffff';
+    context.fillRect(x, y, cardWidth, cardHeight);
+
+    drawContainedImage(
+      context,
+      image,
+      x + 18,
+      y + 18,
+      cardWidth - 36,
+      cardHeight - 92
+    );
+
+    const label = String(conceptImages[index].alt || `Concept ${index + 1}`)
+      .replace(/^Your custom /i, '');
+
+    context.fillStyle = '#111111';
+    context.font = '700 25px Arial, sans-serif';
+    context.fillText(label, x + 24, y + cardHeight - 34);
+  });
+
+  const nextStepsY = 1782;
+
+context.fillStyle = '#ffffff';
+context.fillRect(
+  pagePadding,
+  nextStepsY,
+  canvas.width - (pagePadding * 2),
+  220
+);
+
+context.fillStyle = colourB;
+context.fillRect(pagePadding, nextStepsY, 14, 220);
+
+context.fillStyle = '#111111';
+context.font = '700 34px Arial, sans-serif';
+context.fillText('NEXT STEPS', pagePadding + 44, nextStepsY + 58);
+
+context.font = '400 27px Arial, sans-serif';
+context.fillText(
+  'Pricing is based on your order quantity.',
+  pagePadding + 44,
+  nextStepsY + 112
+);
+
+context.fillText(
+  'Message Kieran to discuss pricing, finalise your designs and place your order.',
+  pagePadding + 44,
+  nextStepsY + 160
+);
+  context.fillStyle = '#111111';
+  context.fillRect(
+    0,
+    canvas.height - footerHeight,
+    canvas.width,
+    footerHeight
+  );
+
+  context.fillStyle = '#ffffff';
+  context.font = '700 27px Arial, sans-serif';
+  context.fillText(
+    'CREATED WITH NOGGIN SPORT',
+    pagePadding,
+    canvas.height - 42
+  );
+
+  context.textAlign = 'right';
+  context.font = '400 25px Arial, sans-serif';
+  context.fillText(
+    'nogginsport.org',
+    canvas.width - pagePadding,
+    canvas.height - 42
+  );
+
+  context.textAlign = 'left';
+
+  return canvas.toDataURL('image/jpeg', 0.86);
+}
+  root.addEventListener('click', async (event) => {
+  const contactButton = event.target.closest('.ncg__contact-kieran');
+  if (!contactButton) return;
+
+  const conceptImages = [...results.querySelectorAll('.ncg__result img')];
+
+  if (conceptImages.length !== 9) {
+    status.textContent = 'Please generate all 9 concepts first.';
+    return;
+  }
+
+  const originalText = contactButton.textContent;
+  contactButton.disabled = true;
+  contactButton.textContent = 'Creating your branded concept sheet…';
+  status.textContent = 'Preparing your concepts for WhatsApp…';
+
+  try {
+    const imageData = await createBrandedConceptSheet(conceptImages);
+
+    const shareApi = String(API).replace(
+      /\/api\/generate\/?$/,
+      '/api/share-concepts'
+    );
+
+    const response = await fetch(shareApi, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        imageData,
+        sessionId: `shopify-${Date.now()}`
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.url) {
+      throw new Error(
+        data.message || 'The branded concept sheet could not be saved.'
+      );
+    }
+
+ const message =
+  `Hi Kieran,\n\n` +
+  `I've just created my 9 custom Noggin concepts and would like to discuss the designs, pricing and the next steps.\n\n` +
+  `Here are my concepts:\n${data.url}\n\nThanks!`;
+
+const whatsappUrl =
+  `https://wa.me/447969141389?text=${encodeURIComponent(message)}`;
+
+window.location.href = whatsappUrl;
+  } catch (error) {
+    console.error('Branded concept sharing failed:', error);
+
+    status.textContent =
+      error.message || 'The concepts could not be prepared. Please try again.';
+  } finally {
+    contactButton.disabled = false;
+    contactButton.textContent = originalText;
+  }
+});
+  root.addEventListener('click', async (event) => {
+  const shareAllButton = event.target.closest('.ncg__share-all');
+  if (!shareAllButton) return;
+
+  const originalText = shareAllButton.textContent;
+  const conceptImages = [...results.querySelectorAll('.ncg__result img')];
+
+  if (conceptImages.length !== 9) {
+    status.textContent = 'Please generate all 9 concepts before sharing.';
+    return;
+  }
+
+  shareAllButton.disabled = true;
+  shareAllButton.textContent = 'Preparing your 9 concepts…';
+
+  try {
+    const conceptFiles = await Promise.all(
+      conceptImages.map(async (image, index) => {
+        const response = await fetch(image.src);
+
+        if (!response.ok) {
+          throw new Error(`Could not prepare concept ${index + 1}`);
+        }
+
+        const blob = await response.blob();
+        const imageType = blob.type || 'image/png';
+
+        const extension = imageType.includes('jpeg')
+          ? 'jpg'
+          : imageType.includes('webp')
+            ? 'webp'
+            : 'png';
+
+        return new File(
+          [blob],
+          `noggin-concept-${index + 1}.${extension}`,
+          { type: imageType }
+        );
+      })
+    );
+
+    const shareData = {
+      title: 'My Noggin Sport concepts',
+  
+       text: `Hi everyone,
+
+I’ve put together some custom headwear concepts with Noggin Sport and would love your thoughts.
+
+Noggin is more than a headwear supplier. They’re a mental health brand creating caps, beanies and bucket hats that help start positive conversations and remind people that it’s okay not to be okay.
+
+Custom orders include free shipping, a 4–5 week turnaround and a money-back quality guarantee.
+
+Take a look at the concepts below—which design is your favourite?
+
+Thanks!`,
+      files: conceptFiles
+    };
+
+    if (
+      navigator.share &&
+      navigator.canShare &&
+      navigator.canShare({ files: conceptFiles })
+    ) {
+      await navigator.share(shareData);
+    } else {
+      status.textContent =
+        'Sharing all images works best on a phone. Please open this page on your mobile.';
+    }
+  } catch (error) {
+    if (error.name !== 'AbortError') {
+      status.textContent =
+        'The concepts could not be shared. Please try again.';
+    }
+  } finally {
+    shareAllButton.disabled = false;
+    shareAllButton.textContent = originalText;
+  }
+});
+  
+  root.addEventListener('click', async (event) => {
+  const shareButton = event.target.closest('.ncg__share');
+  if (!shareButton) return;
+
+  const url = shareButton.dataset.shareUrl;
+  const title = shareButton.dataset.shareTitle;
+
+  try {
+  const response = await fetch(url);
+  const imageBlob = await response.blob();
+  const imageType = imageBlob.type || 'image/png';
+
+  const extension = imageType.includes('jpeg')
+    ? 'jpg'
+    : imageType.includes('webp')
+      ? 'webp'
+      : 'png';
+
+  const imageFile = new File(
+    [imageBlob],
+    `${title.toLowerCase().replaceAll(' ', '-')}.${extension}`,
+    { type: imageType }
+  );
+
+  if (
+    navigator.share &&
+    navigator.canShare &&
+    navigator.canShare({ files: [imageFile] })
+  ) {
+    await navigator.share({
+      title,
+     text: `Hi everyone,
+
+I’ve put together some custom headwear concepts with Noggin Sport and would love your thoughts.
+
+Noggin is more than a headwear supplier. They’re a mental health brand creating caps and beanies that help start positive conversations and remind people that it’s okay not to be okay.
+
+Custom orders include free shipping, a 4–5 week turnaround and a money-back quality guarantee.
+
+Take a look at the concepts below—which design is your favourite?
+
+Thanks!`,
+      files: [imageFile]
+    });
+  } else {
+    const message = encodeURIComponent(
+      `Hi everyone,
+
+I’ve put together some custom headwear concepts with Noggin Sport and would love your thoughts.
+
+Noggin is more than a headwear supplier. They’re a mental health brand creating caps and beanies that help start positive conversations and remind people that it’s okay not to be okay.
+
+Custom orders include free shipping, a 4–5 week turnaround and a money-back quality guarantee.
+
+Take a look at the concepts below—which design is your favourite?
+
+Thanks!`
+    );
+
+    window.open(
+      `https://wa.me/?text=${message}`,
+      '_blank',
+      'noopener'
+    );
+  }
+  } catch (error) {
+    if (error.name !== 'AbortError') {
+      status.textContent = 'Sharing is unavailable. Please use Save image instead.';
+    }
+  }
+});
+})();
+</script>
+
+</body>
+</html>
